@@ -73,7 +73,7 @@ module.exports = {
                 }
                 await page.waitForTimeout(1500);
                 await frame.click('button[id="ModalButtonSubmit"]');
-                await page.waitForTimeout(8500);
+                await frame.waitForSelector('[class="attachment-thumbnail-wrapper"]');
                 await frame.click('[title="Complete this assignment"]');
                 await page.waitForTimeout(5000);
 
@@ -86,7 +86,7 @@ module.exports = {
             await files.logging(err);
             files.getSisaFoto();
             files.resetFotoBuatUpload();
-            //browser.close();
+            browser.close();
             return false;
         }
         console.log('\x1b[32m', 'SEMUA JOB SELESAI DIKERJAKAN!');
