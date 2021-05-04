@@ -10,7 +10,7 @@ const config = {
 		username: '',
 		password: '',
 	},
-	jobName: 'Checklist Bot',
+	jobName: 'Your Job Name',
 	// Make sure to create new folder inside 'images' folder corresponding to your job list
 	jobs: [
 		'(0001) JOB NAME 1',
