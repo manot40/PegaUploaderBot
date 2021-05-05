@@ -65,17 +65,18 @@ module.exports = {
                 await page.waitForTimeout(1000);
                 const uploadHandler = await frame.$('input[type="file"]');
                 uploadHandler.uploadFile(appcfg.folder + '/' + cfgstore.get('job-desc') + '/' + foto + '/');
-				if (cfgstore.get('job') == '1732') {
+		if (cfgstore.get('job') == 'XXXX') {
                     await page.waitForTimeout(1500);
                     const laporanHandler = await frame.$('input[type="file"]');
                     await laporanHandler.uploadFile(appcfg.folder + '/laporan.xlsx');
-                    await page.waitForTimeout(2000);
+                    await page.waitForTimeout(1500);
                 }
                 await page.waitForTimeout(1500);
                 await frame.click('button[id="ModalButtonSubmit"]');
                 await frame.waitForSelector('[class="attachment-thumbnail-wrapper"]');
                 await frame.click('[title="Complete this assignment"]');
-                await page.waitForTimeout(5000);
+                await frame.waitForSelector('[node_name="pyConfirmMessage"]');
+		await page.waitForTimeout(1500);
 
                 // Finishing job
                 files.moveComplete(appcfg.folder + '/' + cfgstore.get('job-desc') + '/' + foto + '/', appcfg.folder + '/trashBin/' + foto + '/');
