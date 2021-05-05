@@ -46,7 +46,7 @@ module.exports = {
                 await page.click('.menu-item-expand');
                 await page.waitForTimeout(100);
                 await page.mouse.click(330, 50);
-                await page.waitForTimeout('4500');
+                await page.waitForTimeout('2500');
 
                 // Pilih Jenis pekerjaan untuk di input ke form laporan
                 await page.waitForSelector('[id="PegaGadget' + pegaGadget + 'Ifr"]');
@@ -54,18 +54,19 @@ module.exports = {
                 const frame = await elementHandle.contentFrame();
                 await frame.waitForSelector('[id="7fe8a912"]');
                 await frame.select('[id="7fe8a912"]', cfgstore.get('job'));
-                await page.waitForTimeout(100);
+                await page.waitForTimeout(500);
+                await frame.waitForSelector('[title="Complete this assignment"]');
                 await frame.click('[title="Complete this assignment"]');
 
                 // Mengisi form laporan mitra berdasarkan jenis pekerjaan
                 await frame.waitForSelector('a[name="InputFinishActivity_pyWorkPage_25"]');
                 await frame.click('input[id="2bc4e467"]');
-                appcfg.customDesc ? await page.keyboard.type(foto.slice(0,-4)) : await page.keyboard.type(cfgstore.get('job-desc'));
+                appcfg.customDesc ? await page.keyboard.type(foto.slice(0, -4)) : await page.keyboard.type(cfgstore.get('job-desc'));
                 await frame.click('a[name="InputFinishActivity_pyWorkPage_25"]');
                 await page.waitForTimeout(1000);
                 const uploadHandler = await frame.$('input[type="file"]');
                 uploadHandler.uploadFile(appcfg.folder + '/' + cfgstore.get('job-desc') + '/' + foto + '/');
-		if (cfgstore.get('job') == 'XXXX') {
+                if (cfgstore.get('job') == 'XXXX') {
                     await page.waitForTimeout(1500);
                     const laporanHandler = await frame.$('input[type="file"]');
                     await laporanHandler.uploadFile(appcfg.folder + '/laporan.xlsx');
@@ -76,7 +77,7 @@ module.exports = {
                 await frame.waitForSelector('[class="attachment-thumbnail-wrapper"]');
                 await frame.click('[title="Complete this assignment"]');
                 await frame.waitForSelector('[node_name="pyConfirmMessage"]');
-		await page.waitForTimeout(1500);
+                await page.waitForTimeout(1500);
 
                 // Finishing job
                 files.moveComplete(appcfg.folder + '/' + cfgstore.get('job-desc') + '/' + foto + '/', appcfg.folder + '/trashBin/' + foto + '/');
