@@ -19,6 +19,9 @@ const config = {
 		'(0004) JOB NAME 4',
 		'(0005) JOB NAME 5',
 	],
+	multiUpload: {
+		jobsID: [],
+	},
 };
 
 module.exports = config;
