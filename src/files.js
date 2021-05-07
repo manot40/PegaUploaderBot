@@ -56,8 +56,8 @@ module.exports = {
     let date = ("0" + date_ob.getDate()).slice(-2);
     let month = ("0" + (date_ob.getMonth() + 1)).slice(-2);
     let year = date_ob.getFullYear();
-    let hours = date_ob.getHours();
-    let minutes = date_ob.getMinutes();
+    let hours = ("0" + date_ob.getHours()).slice(-2);
+    let minutes = ("0" + date_ob.getMinutes()).slice(-2);
 
     var writer = fs.createWriteStream('./log/puppeteer-bot/error.log', { flags: 'a' });
     writer.write(util.format(date + '/' + month + '/' + year + ' ' + hours + ':' + minutes + ' | Caught exception: ' + i) + '\n');

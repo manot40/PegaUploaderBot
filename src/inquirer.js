@@ -1,12 +1,9 @@
 const inquirer = require('inquirer');
-const Configstore = require('configstore');
-const pkg = require('../package.json');
-
-const cfgstore = new Configstore(pkg.name);
 const appcfg = require('../config');
 
-// Files Handler Lib
+// Custom Handler Lib
 const files  = require('./files');
+const param  = require('./parameter');
 
 module.exports = {
   cobaLogin: () => {
@@ -17,7 +14,7 @@ module.exports = {
         message: 'Username:',
         validate: function( value ) {
           if (value.length) {
-            cfgstore.set('username', value);
+            param.setUsername(value);
             return true;
           } else {
             return 'Masukin username yang bener jancok.';
@@ -30,7 +27,7 @@ module.exports = {
         message: 'Password:',
         validate: function(value) {
           if (value.length) {
-            cfgstore.set('password', value);
+            param.setPassword(value);
             return true;
           } else {
             return 'Masukin password yang bener jancok.';
@@ -53,13 +50,12 @@ module.exports = {
     return inquirer.prompt(questions).then((answer) => {
       let val = JSON.stringify(answer);
       const jobID = parseInt(val.slice(9,13), 10)-0;
-      cfgstore.set('job', jobID.toString());
-      cfgstore.set('job-desc', val.slice(15,-2));
+      param.setJob([jobID.toString(), val.slice(15,-2)]);
     });
   },
 
   pastiin: () => {
-	files.checkFotoBuatUpload(cfgstore.get('job-desc'));
+	files.checkFotoBuatUpload(param.getJob(1));
 	const questions = [
 	  {
 		name: 'sure',
@@ -73,8 +69,7 @@ module.exports = {
 
   loginSkip: () => {
     console.log('\x1b[31m', 'Fast Login Active');
-    cfgstore.set('username', appcfg.fastLogin.username);
-    cfgstore.set('password', appcfg.fastLogin.password);
-    console.log('\x1b[37m', 'Logged in as: ' + cfgstore.get('username') + '\n');
+    param.setAuth(appcfg.fastLogin.username, appcfg.fastLogin.password)
+    console.log('\x1b[37m', 'Logged in as: ' + appcfg.fastLogin.username + '\n');
   },
 };

@@ -14,10 +14,9 @@
     "chalk": "^4.1.1",
     "clear": "^0.1.0",
     "compress-images": "^1.9.9",
-    "configstore": "5.0.1",
     "figlet": "^1.5.0",
     "inquirer": "^8.0.0",
     "pngquant-bin": "^6.0.0",
-    "puppeteer": "^9.0.0"
+    "puppeteer": "^9.1.1"
   }
 }
