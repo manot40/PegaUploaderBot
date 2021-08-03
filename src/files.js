@@ -3,7 +3,6 @@ var util = require('util');
 const config = require('../config');
 
 var fotoUpload = [];
-var fotoGagal = [];
 let date_ob = new Date();
 
 module.exports = {
@@ -14,7 +13,6 @@ module.exports = {
           fotoUpload.push(file);
         });
         console.log('\n');
-        fotoGagal = fotoUpload.slice(0);
         console.log('----------------');
         console.log('Total file: ' + fotoUpload.length);
         console.log('----------------\n');
@@ -29,27 +27,8 @@ module.exports = {
     return fotoUpload[i].toString();
   },
 
-  getSisaFoto: () => {
-    console.log('\x1b[31m', 'FAILED!');
-    console.log('Sisa yang belum diupload:');
-    for (i = 0; i < fotoGagal.length; i++) {
-      console.log(fotoGagal[i]);
-    }
-  },
-
   getFotoLength: () => {
     return fotoUpload.length;
-  },
-
-  remFotoGagal: (i) => {
-    var deletion = [];
-    deletion.push(i);
-    fotoGagal = fotoGagal.filter(item => !deletion.includes(item))
-  },
-
-  resetFotoBuatUpload: () => {
-    fotoUpload = [];
-    fotoGagal = [];
   },
 
   logging: (i) => {
@@ -60,10 +39,11 @@ module.exports = {
     let minutes = ("0" + date_ob.getMinutes()).slice(-2);
 
     var writer = fs.createWriteStream('./log/puppeteer-bot/error.log', { flags: 'a' });
-    writer.write(util.format(date + '/' + month + '/' + year + ' ' + hours + ':' + minutes + ' | Caught exception: ' + i) + '\n');
+    writer.write(util.format('[' + date + '/' + month + '/' + year + ' ' + hours + ':' + minutes + '] ' + i) + '\n');
   },
 
-  moveComplete: (currPath, destPath) => {
+  fotoDone: (currPath, destPath) => {
+	fotoUpload.shift();
     fs.rename(currPath, destPath, function (err) {
       if (err) {
         console.log(err);

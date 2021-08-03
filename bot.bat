@@ -4,6 +4,8 @@ IF "%1" == "start" (
 	GOTO STARTBOT
 )else IF "%1" == "compress" (
 	GOTO COMPRESS
+)else IF "%1" == "mango" (
+	GOTO MANGO
 )
 
 :INQUIRE
@@ -27,6 +29,9 @@ IF /I "%QUESTION%"=="y" (
 	GOTO END
 )
 
+:MANGO
+node mango.js
+GOTO END
 
 :STARTBOT
 clear
@@ -36,5 +41,4 @@ node bot.js
 :END
 echo.
 echo all task done.
-PAUSE
-EXIT
+pause

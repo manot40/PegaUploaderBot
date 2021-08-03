@@ -16,20 +16,21 @@ console.log(
     figlet.textSync(appcfg.jobName, { horizontalLayout: 'full' })
   )
 );
-console.log('\n Ver: 1.2.0 \n');
+console.log('\n Ver: 1.2.4 \n');
 
 const run = async () => {
   !appcfg.fastLogin.enabled ? await inquirer.cobaLogin() : await inquirer.loginSkip();
   await inquirer.pilihJob();
+  await inquirer.pastiin();
   worker();
 }
 const worker = async () => {
-  await inquirer.pastiin();
   const mulaiJob = await bot.mulaiJob();
   if(!mulaiJob) {
-    console.log('\x1b[37m','Upload Gagal.');
+    console.log('\x1b[37m','Retrying...\n');
     worker();
-  }
+  } 
+  run();
 };
 
 run();
