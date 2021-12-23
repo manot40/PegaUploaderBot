@@ -4,24 +4,22 @@ const clear = require('clear');
 const figlet = require('figlet');
 
 // Input and Puppeteer Lib
-const inquirer  = require('./src/inquirer');
-const bot  = require('./src/bot-core');
-
-const appcfg = require('./config');
+const { cobaLogin, loginSkip, pilihJob }  = require('./src/inquirer');
+const bot  = require('./src/core');
+const config = require('./config');
 
 clear();
 
 console.log(
   chalk.green(
-    figlet.textSync(appcfg.jobName, { horizontalLayout: 'full' })
+    figlet.textSync(config.jobName, { horizontalLayout: 'full' })
   )
 );
 console.log('\n Ver: 1.2.4 \n');
 
 const run = async () => {
-  !appcfg.fastLogin.enabled ? await inquirer.cobaLogin() : await inquirer.loginSkip();
-  await inquirer.pilihJob();
-  await inquirer.pastiin();
+  !config.fastLogin.enabled ? await cobaLogin() : await loginSkip();
+  await pilihJob();
   worker();
 }
 const worker = async () => {
@@ -30,7 +28,6 @@ const worker = async () => {
     console.log('\x1b[37m','Retrying...\n');
     worker();
   } 
-  run();
 };
 
 run();

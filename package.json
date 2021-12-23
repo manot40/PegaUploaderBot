@@ -11,13 +11,13 @@
   "keywords": [],
   "license": "ISC",
   "dependencies": {
-    "chalk": "^4.1.1",
+    "chalk": "^4.1.2",
     "clear": "^0.1.0",
     "cli-progress": "^3.9.0",
     "compress-images": "^1.9.9",
-    "figlet": "^1.5.0",
-    "inquirer": "^8.1.1",
+    "figlet": "^1.5.2",
+    "inquirer": "^8.1.2",
     "pngquant-bin": "^6.0.0",
-    "puppeteer": "^10.0.0"
+    "puppeteer": "^10.2.0"
   }
 }

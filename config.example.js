@@ -5,6 +5,11 @@ const config = {
 	url: 'https://hcc.sinarmas.co.id/prweb',
 	// Set pages timeout (in second)
 	timeout: 60,
+	// Workaround for lag on low spec PC
+	antiLag: {
+		enabled: false,
+		jobPerCycle: 10,
+	},
 	// Fast login mode, set true to skip login inquirer every time use the bot
 	fastLogin: {
 		enabled: false,
@@ -14,12 +19,8 @@ const config = {
 	jobName: 'Your Job Name',
 	// Set true for unique description per post or false for auto generated description
 	customDesc: [
-		'1726',
-		'1727',
-		'1728',
-		'1729',
-		'1730',
-		'1731',
+		'0001',
+		'0002',
 	],
 	// Make sure to create new folder inside 'images' folder corresponding to your job list
 	jobs: [
