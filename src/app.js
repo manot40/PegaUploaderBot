@@ -38,12 +38,15 @@ export default async function () {
 
     if (await workDir.compressUpload(file)) {
       pegaGadget < 15 ? pegaGadget++ : (pegaGadget = 1);
-      await bot.setNode(pegaGadget);
       console.log("----------------------------------------------------------");
       console.log("File saat ini: " + file);
+      await bot.setNode(pegaGadget);
       await bot.beginInput();
       await bot.createForm();
       await bot.handleForm();
+      await bot.finishing();
+      await workDir.uploadDone();
+      console.log("----------------------------------------------------------");
     } else {
       console.log("\x1b[31m", "File cannot be compressed!");
       console.log("\x1b[37m", "This entry will be skipped");
