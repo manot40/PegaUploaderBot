@@ -1,6 +1,6 @@
 let username, password, job;
 
-module.exports = {
+export default {
   setAuth: (uname, psswd) => {
     username = uname;
     password = psswd;
@@ -14,9 +14,11 @@ module.exports = {
   setJob: (obj) => {
     job = obj;
   },
-  getAuth: (i) => {
-    auth = [username, password];
-    return auth[i];
+  getUsername: () => {
+    return username;
+  },
+  getPassword: () => {
+    return password;
   },
   getJob: (i) => {
     return job[i];

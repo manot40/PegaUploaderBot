@@ -1,0 +1,19 @@
+{
+  "minify": false,
+  "jsc": {
+    "parser": {
+      "syntax": "ecmascript",
+      "decorators": false
+    },
+    "transform": null,
+    "target": "es2016",
+    "keepClassNames": true,
+    "loose": false
+  },
+  "module": {
+    "type": "commonjs",
+    "strictMode": true,
+    "lazy": false,
+    "noInterop": false
+  }
+}

@@ -1,9 +1,6 @@
+dist
 node_modules
 config.js
-package-lock.json
 log/compress-images/*
 log/puppeteer-bot/*
-images/*/**
-!*.jpg
-!*.jpeg
-!*.png
+images/**/*

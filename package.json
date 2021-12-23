@@ -1,23 +1,32 @@
 {
-  "name": "mitra_uploader_bot-checklist",
+  "name": "develop",
   "version": "1.0.0",
-  "description": "Bot Upload Laporan Mitra",
-  "main": "bot.js",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "compress": "node compress.js",
-    "bot": "node bot.js"
+    "build": "swc src -d dist",
+    "start": "node index.js",
+    "dev": "swc src -d dist && npm start",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Kevin Sandiho",
+  "engines": {
+    "node": ">=14.x.x"
+  },
   "keywords": [],
+  "author": "",
   "license": "ISC",
   "dependencies": {
-    "chalk": "^4.1.2",
+    "chalk": "4.1.2",
     "clear": "^0.1.0",
-    "cli-progress": "^3.9.0",
-    "compress-images": "^1.9.9",
+    "cli-progress": "^3.9.1",
+    "dayjs": "^1.10.7",
     "figlet": "^1.5.2",
-    "inquirer": "^8.1.2",
-    "pngquant-bin": "^6.0.0",
-    "puppeteer": "^10.2.0"
+    "inquirer": "^8.2.0",
+    "puppeteer": "^13.0.1",
+    "sharp": "^0.29.3"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.1.55",
+    "@swc/core": "^1.2.122"
   }
 }
