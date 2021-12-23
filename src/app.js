@@ -18,13 +18,13 @@ export default async function () {
   let resetCounter = 0;
 
   await input(jobs, fastLogin);
-  const { uploads } = await Uploads(folder, store.getJob(1));
+  const workDir = await Uploads(folder, store.getJob(1));
   await confirm();
   const bot = await Bot(config);
   await bot.login();
 
   // Begin uploading tasks
-  for (let file of uploads) {
+  for (let file of workDir.uploads) {
     if (config.antiLag.enabled) {
       if (resetCounter > config.antiLag.jobPerCycle) {
         resetCounter = 0;
@@ -36,12 +36,17 @@ export default async function () {
       }
     }
 
-    pegaGadget < 15 ? pegaGadget++ : (pegaGadget = 1);
-    await bot.setNode(pegaGadget);
-    console.log("-----------------------------------------------------------");
-    console.log("File saat ini: " + file);
-    await bot.beginInput();
-    await bot.createForm();
-    await bot.handleForm();
+    if (await workDir.compressUpload(file)) {
+      pegaGadget < 15 ? pegaGadget++ : (pegaGadget = 1);
+      await bot.setNode(pegaGadget);
+      console.log("----------------------------------------------------------");
+      console.log("File saat ini: " + file);
+      await bot.beginInput();
+      await bot.createForm();
+      await bot.handleForm();
+    } else {
+      console.log("\x1b[31m", "File cannot be compressed!");
+      console.log("\x1b[37m", "This entry will be skipped");
+    }
   }
 }

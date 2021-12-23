@@ -1,21 +1,47 @@
-import { readdir } from "fs/promises";
+import { readdir, mkdir, unlink, rename } from "fs/promises";
+import sharp from "sharp";
 
 export default async (folder, job) => {
-  const uploads = await readdir(folder + '/' + job + '/');
+  const dir = `./${folder}/${job}`;
+  const temp = `./${folder}/.temp`;
+  const trash = `./${folder}/trash`;
+
+  await mkdir(dir).catch(() => {});
+  await mkdir(temp).catch(() => {});
+  await mkdir(trash).catch(() => {});
+  
+  const uploads = await readdir(dir);
+
   if (uploads.length) {
-    console.log('\n');
-    console.log('----------------');
-    console.log('Total file: ' + uploads.length);
-    console.log('----------------');
+    console.log("\n");
+    console.log("----------------");
+    console.log("Total file: " + uploads.length);
+    console.log("----------------");
   } else {
-    console.log('\x1b[31m', 'FOLDER KOSONG!');
-    console.log('\x1b[37m', '');
+    console.log("\x1b[31m", "FOLDER KOSONG!");
+    console.log("\x1b[37m", "");
     process.exit();
   }
   return {
     uploads,
-    uploadDone() {
-
-    }
-  }
-}
+    async compressUpload(file) {
+      try {
+        await sharp(`${dir}/${file}`)
+          .jpeg({ quality: 30 })
+          .toFile(`${temp}/${file}`);
+        return true;
+      } catch (err) {
+        console.log(err.message);
+        return false;
+      }
+    },
+    async uploadDone() {
+      try {
+        await rename(`${temp}/${file}, ${trash}/${file}`);
+        await unlink(`${dir}/${file}`);
+      } catch (err) {
+        console.log(err.message);
+      }
+    },
+  };
+};
