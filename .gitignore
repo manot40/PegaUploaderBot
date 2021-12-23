@@ -4,3 +4,6 @@ package-lock.json
 log/compress-images/*
 log/puppeteer-bot/*
 images/*/**
+!*.jpg
+!*.jpeg
+!*.png
