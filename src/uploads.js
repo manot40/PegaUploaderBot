@@ -6,7 +6,7 @@ export default async (folder, job) => {
     console.log('\n');
     console.log('----------------');
     console.log('Total file: ' + uploads.length);
-    console.log('----------------\n');
+    console.log('----------------');
   } else {
     console.log('\x1b[31m', 'FOLDER KOSONG!');
     console.log('\x1b[37m', '');

@@ -44,8 +44,8 @@ export default async (config) => {
         await page.waitForTimeout("1500");
         try {
           await page.waitForSelector("#errorDiv", { timeout: 500 });
-          console.log("\x1b[31m", "Incorrect Password/Username.");
-          console.log("\x1b[37m", "Please Retry.");
+          console.log("\x1b[31m", "Incorrect Password/Username");
+          console.log("\x1b[37m", "Please Retry");
           process.exit(0);
         } catch (err) {
           await page.waitForSelector('li[title="Pengajuan"]');
