@@ -11,7 +11,7 @@ clear();
 console.log(
   chalk.green(figlet.textSync(config.jobName, { horizontalLayout: "full" }))
 );
-console.log("\n Ver: 2.0.0-Alpha \n");
+console.log("\n Ver: 2.0.0-Beta \n");
 
 export default async function () {
   let pegaGadget = 0;
@@ -27,8 +27,8 @@ export default async function () {
   // Begin uploading tasks
   for (let file of workDir.uploads) {
     if (config.antiLag) {
-      if (resetCounter > 15) {
-        resetCounter = 1;
+      if (resetCounter === 5) {
+        resetCounter = 0;
         console.log("Reloading to avoid lag...");
         await bot.reloadPage();
         await bot.sleep(2000);
@@ -47,17 +47,16 @@ export default async function () {
       await bot.handleForm(file);
       await bot.uploadFile(file);
       await bot.finishing();
-      await workDir.uploadDone();
-      console.log("----------------------------------------------------------");
+      await workDir.uploadDone(file);
       console.log("UPLOAD SUKSES! Sisa upload: " + (remained - 1));
       remained--;
     } else {
-      await workDir.skipUpload();
+      await workDir.skipUpload(file);
       console.log("\x1b[31m", "File cannot be compressed!");
       console.log("\x1b[37m", "This entry will be skipped");
     }
-    console.log("UPLOAD SUKSES! Semua file terupload");
-    console.log("----------------------------------------------------------");
-    process.exit(0);
   }
+  console.log("----------------------------------------------------------");
+  console.log("UPLOAD SUKSES! Semua file terupload");
+  process.exit(0);
 }

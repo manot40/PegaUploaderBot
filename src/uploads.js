@@ -13,7 +13,6 @@ export default async (folder, job) => {
   const uploads = await readdir(dir);
 
   if (uploads.length) {
-    console.log("\n");
     console.log("----------------");
     console.log("Total file: " + uploads.length);
     console.log("----------------");
@@ -35,17 +34,17 @@ export default async (folder, job) => {
         return false;
       }
     },
-    async uploadDone() {
+    async uploadDone(file) {
       try {
-        await rename(`${temp}/${file}, ${trash}/${file}`);
+        await rename(`${temp}/${file}`, `${trash}/${file}`);
         await unlink(`${dir}/${file}`);
       } catch (err) {
         console.log(err.message);
       }
     },
-    async skipUpload() {
+    async skipUpload(file) {
       try {
-        await rename(`${dir}/${file}, ${trash}/${file}`);
+        await rename(`${dir}/${file}`, `${trash}/${file}`);
       } catch (err) {
         console.log(err.message);
       }
