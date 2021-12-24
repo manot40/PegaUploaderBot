@@ -22,6 +22,7 @@ const progress = new cliProgress.SingleBar({
 
 export default async (config) => {
   const { page } = await startBrowser(config);
+  const temp = `./${folder}/.temp/`;
   let frame, node;
   return {
     async setNode(i) {
@@ -30,7 +31,7 @@ export default async (config) => {
     async reloadPage() {
       await page.reload({ waitUntil: "networkidle0" });
     },
-    async idleState(timeout) {
+    async sleep(timeout) {
       await page.waitForTimeout(timeout);
     },
     async login() {
@@ -91,9 +92,9 @@ export default async (config) => {
       try {
         await frame.waitForSelector('input[id="2bc4e467"]');
         await frame.click('input[id="2bc4e467"]');
-        config.customDesc.includes(param.getJob(0))
+        config.customDesc.includes(store.getJob(0))
           ? await page.keyboard.type(file.slice(0, -4))
-          : await page.keyboard.type(param.getJob(1));
+          : await page.keyboard.type(store.getJob(1));
         progress.update(50);
       } catch (err) {
         console.error(err.message);
@@ -111,7 +112,7 @@ export default async (config) => {
           'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]'
         );
         progress.update(70);
-        await uploadHandler.uploadFile(workFolder + file);
+        await uploadHandler.uploadFile(temp + file);
         await frame
           .waitForSelector('div[node_name="pyCaseRelatedContentInner"]')
           .catch(async () => {

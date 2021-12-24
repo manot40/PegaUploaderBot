@@ -9,3 +9,11 @@ try {
 }
 
 app.default();
+
+process.on("uncaughtException", (err) => {
+  console.error(err.message);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error(err.message);
+});

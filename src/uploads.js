@@ -43,5 +43,12 @@ export default async (folder, job) => {
         console.log(err.message);
       }
     },
+    async skipUpload() {
+      try {
+        await rename(`${dir}/${file}, ${trash}/${file}`);
+      } catch (err) {
+        console.log(err.message);
+      }
+    },
   };
 };

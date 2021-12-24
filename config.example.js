@@ -6,10 +6,7 @@ module.exports = {
   // Set pages timeout (in second)
   timeout: 60,
   // Workaround for lag on low spec PC
-  antiLag: {
-    enabled: false,
-    jobPerCycle: 10,
-  },
+  antiLag: true,
   // Fast login mode, set true to skip login inquirer every time use the bot
   fastLogin: {
     enabled: false,
