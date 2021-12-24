@@ -44,8 +44,8 @@ export default async function () {
       await bot.setNode(pegaGadget);
       await bot.beginInput();
       await bot.createForm();
-      await bot.handleForm();
-      await bot.uploadFile();
+      await bot.handleForm(file);
+      await bot.uploadFile(file);
       await bot.finishing();
       await workDir.uploadDone();
       console.log("----------------------------------------------------------");

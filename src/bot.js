@@ -88,7 +88,7 @@ export default async (config) => {
         this.createForm();
       }
     },
-    async handleForm() {
+    async handleForm(file) {
       try {
         await frame.waitForSelector('input[id="2bc4e467"]');
         await frame.click('input[id="2bc4e467"]');
@@ -102,7 +102,7 @@ export default async (config) => {
         this.handleForm();
       }
     },
-    async uploadFile() {
+    async uploadFile(file) {
       try {
         await frame.waitForSelector(
           'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]'
