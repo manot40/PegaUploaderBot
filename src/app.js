@@ -45,6 +45,7 @@ export default async function () {
       await bot.beginInput();
       await bot.createForm();
       await bot.handleForm();
+      await bot.uploadFile();
       await bot.finishing();
       await workDir.uploadDone();
       console.log("----------------------------------------------------------");
