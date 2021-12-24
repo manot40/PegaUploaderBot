@@ -6,7 +6,7 @@
       "decorators": false
     },
     "transform": null,
-    "target": "es2016",
+    "target": "es2020",
     "keepClassNames": true,
     "loose": false
   },
