@@ -22,7 +22,7 @@ const progress = new cliProgress.SingleBar({
 
 export default async (config) => {
   const { page } = await startBrowser(config);
-  const temp = `./${folder}/.temp/`;
+  const temp = `./${config.folder}/.temp/`;
   let frame, node;
   return {
     async setNode(i) {
