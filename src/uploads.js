@@ -19,7 +19,7 @@ export default async (folder, job) => {
   } else {
     console.log("\x1b[31m", "FOLDER KOSONG!");
     console.log("\x1b[37m", "");
-    process.exit();
+    process.exit(0);
   }
   return {
     uploads,

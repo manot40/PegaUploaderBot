@@ -11,7 +11,7 @@ clear();
 console.log(
   chalk.green(figlet.textSync(config.jobName, { horizontalLayout: "full" }))
 );
-console.log("\n Ver: 2.0.0-Beta \n");
+console.log("\n Ver: 2.0.1 \n");
 
 export default async function () {
   let pegaGadget = 0;
@@ -36,10 +36,9 @@ export default async function () {
         resetCounter++;
       }
     }
-
+    console.log("----------------------------------------------------------");
     if (await workDir.compressUpload(file)) {
       pegaGadget < 15 ? pegaGadget++ : (pegaGadget = 1);
-      console.log("----------------------------------------------------------");
       console.log("File saat ini: " + file);
       await bot.setNode(pegaGadget);
       await bot.beginInput();
@@ -53,10 +52,10 @@ export default async function () {
     } else {
       await workDir.skipUpload(file);
       console.log("\x1b[31m", "File cannot be compressed!");
-      console.log("\x1b[37m", "This entry will be skipped");
+      console.log("\x1b[37m", file + " will be skipped");
     }
   }
   console.log("----------------------------------------------------------");
-  console.log("UPLOAD SUKSES! Semua file terupload");
+  console.log("All Job Done!");
   process.exit(0);
 }
