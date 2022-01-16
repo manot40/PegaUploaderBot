@@ -2,7 +2,7 @@ module.exports = {
   // Normally not changed
   folder: "images",
   silent: true,
-  url: "https://hcc.sinarmas.co.id/prweb",
+  url: "http://localhost:3000",
   // Set pages timeout (in second)
   timeout: 60,
   // Workaround for lag on low spec PC
