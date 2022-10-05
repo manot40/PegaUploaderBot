@@ -3,16 +3,6 @@ import Puppeteer from "puppeteer";
 import colors from "colors";
 import store from "./store";
 
-async function startBrowser(config) {
-  const browser = await Puppeteer.launch({ headless: config.silent });
-  const page = await browser.newPage();
-  const timeout = config.timeout * 1000;
-  page.setViewport({ width: 1366, height: 768 });
-  page.setDefaultTimeout(timeout);
-  await page.goto(config.url);
-  return { browser, page };
-}
-
 const progress = new cliProgress.SingleBar({
   format: "Uploading |" + colors.grey("{bar}") + "| {percentage}% |",
   barCompleteChar: "\u2588",
@@ -22,7 +12,7 @@ const progress = new cliProgress.SingleBar({
 
 const sleep = (timeout = 1000) => new Promise((r) => setTimeout(r, timeout));
 
-export default async (config) => {
+const bot = async (config) => {
   const { page } = await startBrowser(config);
   const temp = `./${config.folder}/.temp/`;
   let frame, node;
@@ -45,7 +35,7 @@ export default async (config) => {
           await page.waitForSelector("#errorDiv", { timeout: 500 });
           console.log("\x1b[31m", "Incorrect Password/Username");
           console.log("\x1b[37m", "Please Retry");
-          process.exit(0);
+          process.exit(1);
         } catch (err) {
           await page.waitForSelector('li[title="Pengajuan"]');
         }
@@ -75,7 +65,7 @@ export default async (config) => {
         await page.waitForSelector(`[id="PegaGadget${node}Ifr"]`);
         const elementHandle = await page.$(`iframe[id="PegaGadget${node}Ifr"]`);
         frame = await elementHandle.contentFrame();
-        await frame.waitForSelector('[id="7fe8a912"]');
+        await frame.waitForSelector('[id="12f20963"]');
         await frame.select('[id="12f20963"]', "76");
         await frame.select('[id="7336ae0d"]', "525");
         await frame.select('[id="f5a7aff0"]', "176");
@@ -148,3 +138,15 @@ export default async (config) => {
     },
   };
 };
+
+async function startBrowser(config) {
+  const browser = await Puppeteer.launch({ headless: config.silent });
+  const page = await browser.newPage();
+  const timeout = config.timeout * 1000;
+  page.setViewport({ width: 1366, height: 768 });
+  page.setDefaultTimeout(timeout);
+  await page.goto(config.url);
+  return { browser, page };
+}
+
+export default bot;

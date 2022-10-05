@@ -7,7 +7,7 @@
   "main": "index.js",
   "description": "",
   "scripts": {
-    "build": "esbuild --bundle --minify --target=node14 --platform=node --outfile=dist/index.js \"--external:config*\" --external:sharp --external:puppeteer index.js",
+    "build": "esbuild --bundle --minify --target=node14 --platform=node --outfile=dist/index.js --external:\"../config\" --external:sharp --external:puppeteer index.js",
     "start": "node dist",
     "dev": "npm run build && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"

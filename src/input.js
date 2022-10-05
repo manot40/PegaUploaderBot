@@ -1,7 +1,7 @@
 import store from "./store";
 import { prompt } from "inquirer";
 
-export default async (jobs, fastLogin) => {
+const input = async (jobs, fastLogin) => {
   if (fastLogin.enabled) {
     console.log("\x1b[31m", "Fast Login Active");
     store.setAuth(fastLogin.username, fastLogin.password);
@@ -10,16 +10,16 @@ export default async (jobs, fastLogin) => {
     await prompt(login);
   }
 
-  await prompt({
+  const { job } = await prompt({
     name: "job",
     type: "list",
     message: "Choose job to be uploaded:",
     choices: jobs,
-  }).then((result) => {
-    let res = JSON.stringify(result);
-    const jobId = parseInt(res.slice(9, 13), 10) - 0;
-    store.setJob([jobId.toString(), res.slice(15, -2)]);
-  });
+  }).catch(() => {});
+
+  const jobId = (+job.match(/(?<=\()(.*)(?=\))/g)[0]).toString();
+  const jobName = job.match(/(?<=\))(.*)/g)[0]?.trim();
+  store.setJob([jobId, jobName]);
 };
 
 export const confirm = async (len) => {
@@ -65,3 +65,5 @@ const makeSure = (total) => ({
   message: `${total} file(s) found. All good? (Enter)`,
   default: true,
 });
+
+export default input;

@@ -1,5 +1,6 @@
-module.exports = {
+const config = {
   // Normally not changed
+  config: {},
   folder: "images",
   silent: true,
   url: "http://localhost:3000",
@@ -25,3 +26,5 @@ module.exports = {
     "(0005) JOB NAME 5",
   ],
 };
+
+module.exports = config;

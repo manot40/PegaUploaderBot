@@ -1,7 +1,7 @@
 import { readdir, mkdir, unlink, rename } from "fs/promises";
 import sharp from "sharp";
 
-export default async (folder, job) => {
+const uploads = async (folder, job) => {
   const dir = `./${folder}/${job}`;
   const temp = `./${folder}/.temp`;
   const trash = `./${folder}/trash`;
@@ -15,7 +15,7 @@ export default async (folder, job) => {
   if (!uploads.length) {
     console.log("\x1b[31m", "FOLDER KOSONG!");
     console.log("\x1b[37m", "");
-    process.exit(0);
+    process.exit(1);
   }
   return {
     uploads,
@@ -47,3 +47,5 @@ export default async (folder, job) => {
     },
   };
 };
+
+export default uploads;

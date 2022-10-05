@@ -1,6 +1,6 @@
 let username, password, job;
 
-export default {
+const store = {
   setAuth: (uname, psswd) => {
     username = uname;
     password = psswd;
@@ -24,3 +24,5 @@ export default {
     return job[i];
   },
 };
+
+export default store;

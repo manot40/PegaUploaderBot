@@ -10,7 +10,7 @@ clear();
 console.log(chalk.green(config.jobName));
 console.log("\n Ver: 2.2.0 \n");
 
-export default async function () {
+async function app() {
   const line = "----------------------------------------------------------";
 
   let pegaGadget = 0;
@@ -59,3 +59,5 @@ export default async function () {
   console.log("All Job Done!");
   process.exit(0);
 }
+
+export default app;
