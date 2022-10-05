@@ -20,19 +20,18 @@ const progress = new cliProgress.SingleBar({
   hideCursor: true,
 });
 
+const sleep = (timeout = 1000, cb = () => {}) =>
+  new Promise(() => setTimeout(cb, timeout));
+
 export default async (config) => {
   const { page } = await startBrowser(config);
   const temp = `./${config.folder}/.temp/`;
   let frame, node;
   return {
-    async setNode(i) {
-      node = i;
-    },
+    sleep,
+    setNode: (i) => (node = i),
     async reloadPage() {
       await page.reload({ waitUntil: "networkidle0" });
-    },
-    async sleep(timeout) {
-      await page.waitForTimeout(timeout);
     },
     async login() {
       try {
@@ -42,7 +41,7 @@ export default async (config) => {
         await page.click("#txtPassword");
         await page.keyboard.type(store.getPassword());
         await page.click("#sub");
-        await page.waitForTimeout("1500");
+        await sleep(1500);
         try {
           await page.waitForSelector("#errorDiv", { timeout: 500 });
           console.log("\x1b[31m", "Incorrect Password/Username");
@@ -62,9 +61,9 @@ export default async (config) => {
         progress.start(100, 0);
         await page.waitForSelector('li[title="Pengajuan"]');
         await page.click('li[title="Pengajuan"]');
-        await page.waitForTimeout(100);
+        await sleep(100);
         await page.mouse.click(330, 50);
-        await page.waitForTimeout("1500");
+        await sleep(1500);
         progress.update(20);
       } catch (err) {
         console.error(err.message);
@@ -79,7 +78,7 @@ export default async (config) => {
         frame = await elementHandle.contentFrame();
         await frame.waitForSelector('[id="7fe8a912"]');
         await frame.select('[id="7fe8a912"]', store.getJob(0));
-        await page.waitForTimeout(100);
+        await sleep(100);
         await frame.click('[title="Complete this assignment"]');
         progress.update(40);
       } catch (err) {
@@ -104,13 +103,11 @@ export default async (config) => {
     },
     async uploadFile(file) {
       try {
-        await frame.waitForSelector(
-          'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]'
-        );
+        const workSpace =
+          'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]';
+        await frame.waitForSelector(workSpace);
         progress.update(60);
-        const uploadHandler = await frame.$(
-          'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]'
-        );
+        const uploadHandler = await frame.$(workSpace);
         progress.update(70);
         await uploadHandler.uploadFile(temp + file);
         await frame
@@ -120,7 +117,7 @@ export default async (config) => {
               .waitForSelector('div[id="pega_ui_mask"]', { hidden: true })
               .catch();
           });
-        await page.waitForTimeout(1000);
+        await sleep(1000);
         progress.update(90);
         await frame.click('[title="Complete this assignment"]');
       } catch (err) {
@@ -131,14 +128,13 @@ export default async (config) => {
     },
     async finishing() {
       try {
-        await frame
-          .waitForSelector('[node_name="pyConfirmMessage"]')
-          .catch(async () => {
-            await frame.click('[title="Complete this assignment"]').catch();
-            await page.waitForTimeout(3000);
-            await frame.waitForSelector('[node_name="pyConfirmMessage"]');
-          });
-        await page.waitForTimeout(1000);
+        const confirmBtn = '[node_name="pyConfirmMessage"]';
+        await frame.waitForSelector(confirmBtn).catch(async () => {
+          await frame.click('[title="Complete this assignment"]').catch();
+          await sleep(3000);
+          await frame.waitForSelector(confirmBtn);
+        });
+        await sleep(1000);
         progress.update(100);
         progress.stop();
         //

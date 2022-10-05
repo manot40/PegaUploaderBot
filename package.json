@@ -1,32 +1,31 @@
 {
-  "name": "develop",
-  "version": "1.0.0",
-  "description": "",
+  "name": "bot-pega-mitra",
+  "keywords": [],
+  "license": "ISC",
+  "author": "Kevin Sandiho",
+  "version": "2.2.0",
   "main": "index.js",
+  "description": "",
   "scripts": {
-    "build": "swc src -d dist",
-    "start": "node index.js",
-    "dev": "swc src -d dist && npm start",
+    "build": "esbuild --bundle --minify --target=node14 --platform=node --outfile=dist/index.js \"--external:config*\" --external:sharp --external:puppeteer index.js",
+    "start": "node dist",
+    "dev": "npm run build && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "puppeteer": "^18.0.5",
+    "sharp": "^0.31.1"
+  },
+  "devDependencies": {
+    "chalk": "4.1.2",
+    "clear": "^0.1.0",
+    "cli-progress": "^3.11.2",
+    "colors": "^1.4.0",
+    "dayjs": "^1.11.5",
+    "esbuild": "^0.15.10",
+    "inquirer": "8.2.4"
   },
   "engines": {
     "node": ">=14.x.x"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "chalk": "4.1.2",
-    "clear": "^0.1.0",
-    "cli-progress": "^3.9.1",
-    "dayjs": "^1.10.7",
-    "figlet": "^1.5.2",
-    "inquirer": "^8.2.0",
-    "puppeteer": "^13.0.1",
-    "sharp": "^0.29.3"
-  },
-  "devDependencies": {
-    "@swc/cli": "^0.1.55",
-    "@swc/core": "^1.2.122"
   }
 }

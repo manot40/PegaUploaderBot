@@ -9,14 +9,10 @@ export default async (folder, job) => {
   await mkdir(dir).catch(() => {});
   await mkdir(temp).catch(() => {});
   await mkdir(trash).catch(() => {});
-  
+
   const uploads = await readdir(dir);
 
-  if (uploads.length) {
-    console.log("----------------");
-    console.log("Total file: " + uploads.length);
-    console.log("----------------");
-  } else {
+  if (!uploads.length) {
     console.log("\x1b[31m", "FOLDER KOSONG!");
     console.log("\x1b[37m", "");
     process.exit(0);

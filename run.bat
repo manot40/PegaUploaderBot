@@ -11,7 +11,7 @@ SET /P INPUT="Masukan angka pilihan (1-3): "
 IF ERRORLEVEL 1 CALL :CASE_4
 
 :CASE_1
-  node index.js
+  node dist
   PAUSE
   GOTO START
 :CASE_2
