@@ -20,8 +20,7 @@ const progress = new cliProgress.SingleBar({
   hideCursor: true,
 });
 
-const sleep = (timeout = 1000, cb = () => {}) =>
-  new Promise(() => setTimeout(cb, timeout));
+const sleep = (timeout = 1000) => new Promise((r) => setTimeout(r, timeout));
 
 export default async (config) => {
   const { page } = await startBrowser(config);
@@ -77,8 +76,11 @@ export default async (config) => {
         const elementHandle = await page.$(`iframe[id="PegaGadget${node}Ifr"]`);
         frame = await elementHandle.contentFrame();
         await frame.waitForSelector('[id="7fe8a912"]');
+        await frame.select('[id="12f20963"]', "76");
+        await frame.select('[id="7336ae0d"]', "525");
+        await frame.select('[id="f5a7aff0"]', "176");
         await frame.select('[id="7fe8a912"]', store.getJob(0));
-        await sleep(100);
+        await sleep(300);
         await frame.click('[title="Complete this assignment"]');
         progress.update(40);
       } catch (err) {

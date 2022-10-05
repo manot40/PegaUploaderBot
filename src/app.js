@@ -24,7 +24,7 @@ export default async function () {
   let remained = workDir.uploads.length;
 
   // Begin uploading tasks
-  workDir.uploads.forEach(async (file) => {
+  for await (const file of workDir.uploads) {
     if (config.antiLag) {
       if (resetCounter === 5) {
         resetCounter = 0;
@@ -53,7 +53,7 @@ export default async function () {
       console.log("\x1b[31m", "File cannot be compressed!");
       console.log("\x1b[37m", file + " will be skipped");
     }
-  });
+  }
 
   console.log(line);
   console.log("All Job Done!");
