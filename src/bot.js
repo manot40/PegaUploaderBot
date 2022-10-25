@@ -1,5 +1,5 @@
 import cliProgress from 'cli-progress';
-import Puppeteer from 'puppeteer';
+import Puppeteer from 'puppeteer-core';
 import colors from 'colors';
 import store from './store';
 
@@ -146,7 +146,10 @@ const bot = async (config) => {
 };
 
 async function startBrowser(config) {
-  const browser = await Puppeteer.launch({ headless: config.silent });
+  const browser = await Puppeteer.launch({
+    headless: config.silent,
+    executablePath: config.chromePath,
+  });
   const page = await browser.newPage();
   const timeout = config.timeout * 1000;
   page.setViewport({ width: 1366, height: 768 });

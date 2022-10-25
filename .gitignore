@@ -1,6 +1,6 @@
+.env
 dist
 node_modules
-config.js
 log/compress-images/*
 log/puppeteer-bot/*
 images/**/*

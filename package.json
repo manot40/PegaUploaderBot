@@ -4,26 +4,29 @@
   "license": "ISC",
   "author": "Kevin Sandiho",
   "version": "2.2.0",
-  "main": "index.js",
+  "bin": {
+    "bot-pega-mitra": "dist/index.js"
+  },
   "description": "",
   "scripts": {
-    "build": "node build",
     "start": "node dist",
+    "build": "node build",
+    "package": "npm run build && pkg --public-packages \"...config\" .",
     "dev": "npm run build && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {
-    "puppeteer": "^18.0.5",
-    "sharp": "^0.31.1"
-  },
   "devDependencies": {
     "chalk": "4.1.2",
-    "clear": "^0.1.0",
-    "cli-progress": "^3.11.2",
-    "colors": "^1.4.0",
-    "dayjs": "^1.11.5",
-    "esbuild": "^0.15.10",
-    "inquirer": "8.2.4"
+    "clear": "0.1.0",
+    "cli-progress": "3.11.2",
+    "colors": "1.4.0",
+    "dayjs": "1.11.5",
+    "dotenv": "^16.0.3",
+    "esbuild": "0.15.10",
+    "inquirer": "8.2.4",
+    "pkg": "5.8.0",
+    "puppeteer-core": "^19.1.1",
+    "sharp": "0.31.1"
   },
   "engines": {
     "node": ">=14.x.x"
@@ -32,5 +35,15 @@
     "singleQuote": true,
     "trailingComma": "all",
     "printWidth": 120
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/sharp/build/Release"
+    ],
+    "targets": [
+      "node14-win-x64"
+    ],
+    "scripts": "dist/*.js",
+    "outputPath": "dist"
   }
 }
