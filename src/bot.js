@@ -22,7 +22,7 @@ const bot = async (config) => {
   async function retry(msg, cb) {
     console.error(msg);
     await reloadPage();
-    await cb();
+    return await cb();
   }
 
   return {
@@ -42,13 +42,14 @@ const bot = async (config) => {
           await page.waitForSelector('#errorDiv', { timeout: 500 });
           console.log('\x1b[31m', 'Incorrect Password/Username');
           console.log('\x1b[37m', 'Please Retry');
-          process.exit(1);
+          return false;
         } catch (err) {
           await page.waitForSelector('li[title="Pengajuan"]');
         }
       } catch ({ message }) {
-        await retry(message, this.login);
+        return await retry(message, this.login);
       }
+      return true;
     },
     async beginInput() {
       try {

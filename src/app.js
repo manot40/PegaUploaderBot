@@ -1,5 +1,5 @@
 import config, { jobs, fastLogin, folder } from './config';
-import input, { confirm } from './input';
+import { confirm, inputLogin, chooseJob } from './input';
 import Uploads from './uploads';
 import store from './store';
 import clear from 'clear';
@@ -13,14 +13,25 @@ console.log('\n Ver: 2.2.0 \n');
 async function app() {
   const line = '----------------------------------------------------------';
 
+  let bot;
+  let workDir;
+  let isLoggedIn;
   let pegaGadget = 0;
   let resetCounter = 0;
 
-  await input(jobs, fastLogin);
-  const workDir = await Uploads(folder, store.getJob(1));
-  await confirm(workDir.uploads.length);
-  const bot = await Bot(config);
-  await bot.login();
+  while (!isLoggedIn) {
+    await inputLogin(fastLogin);
+
+    if (typeof isLoggedIn === 'undefined') {
+      await chooseJob(jobs);
+      workDir = await Uploads(folder, store.getJob(1));
+      await confirm(workDir.uploads.length);
+      bot = await Bot(config);
+    }
+
+    isLoggedIn = await bot.login();
+  }
+
   let remained = workDir.uploads.length;
 
   // Begin uploading tasks
@@ -46,8 +57,7 @@ async function app() {
       await bot.uploadFile(file);
       await bot.finishing();
       await workDir.uploadDone(file);
-      console.log('UPLOAD SUKSES! Sisa upload: ' + (remained - 1));
-      remained--;
+      console.log('UPLOAD SUKSES! Sisa upload: ' + --remained);
     } else {
       await workDir.skipUpload(file);
       console.log('\x1b[31m', 'File cannot be compressed!');

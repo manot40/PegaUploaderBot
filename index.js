@@ -7,7 +7,7 @@ try {
 } catch (err) {
   console.error(process.env.NODE_ENV === 'production' ? err.message : err);
   console.warn('You may need to execute "npm run build" if this is first run');
-  process.exit(0);
+  process.exit(1);
 }
 
 app.default();
