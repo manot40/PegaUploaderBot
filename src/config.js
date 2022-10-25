@@ -5,7 +5,7 @@ const config = {
   // Normally not changed
   folder: 'images',
   url: process.env.BOT_URL || '',
-  silent: process.env.BOT_SILENT,
+  silent: process.env.BOT_SILENT === 'true',
   chromePath: process.env.BOT_BROWSER,
   // Set pages timeout (in second)
   timeout: process.env.BOT_TIMEOUT || 10,
