@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node dist",
     "build": "node build",
-    "package": "npm run build && pkg --public-packages \"...config\" .",
+    "package": "npm run build && pkg -C Brotli .",
     "dev": "npm run build && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
