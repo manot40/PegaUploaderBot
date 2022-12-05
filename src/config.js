@@ -36,7 +36,7 @@ const config = {
     username: process.env.BOT_USERNAME || '',
     password: process.env.BOT_PASSWORD || '',
   },
-  jobName: process.env.NAME || 'The Job Name',
+  jobName: process.env.BOT_NAME || 'The Job Name',
   // Set true for unique description per post or false for auto generated description
   customDesc: JOBS.custom,
   // Make sure to create new folder inside 'images' folder corresponding to your job list

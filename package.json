@@ -15,6 +15,9 @@
     "dev": "npm run build && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "dependencies": {
+    "sharp": "^0.31.2"
+  },
   "devDependencies": {
     "chalk": "4.1.2",
     "clear": "0.1.0",
@@ -25,8 +28,7 @@
     "esbuild": "0.15.10",
     "inquirer": "8.2.4",
     "pkg": "5.8.0",
-    "puppeteer-core": "^19.1.1",
-    "sharp": "0.31.1"
+    "puppeteer-core": "^19.1.1"
   },
   "engines": {
     "node": ">=14.x.x"
