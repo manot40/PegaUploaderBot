@@ -31,6 +31,7 @@ async function bot(config) {
     sleep,
     setNode: (i) => (node = i),
     reloadPage,
+
     async login() {
       try {
         await page.click('#txtUserID');
@@ -53,6 +54,7 @@ async function bot(config) {
       }
       return true;
     },
+
     async beginInput() {
       try {
         progress.start(100, 0);
@@ -64,20 +66,19 @@ async function bot(config) {
         // Click Pengajuan
         const start = await page.$$('a[role="menuitem"]');
         await start[4].click();
+        await page.mouse.click(10, 10);
         await sleep(1000);
         progress.update(20);
       } catch ({ message }) {
         await retry(message, this.beginInput);
       }
     },
+
     async createForm() {
       try {
         await page.waitForSelector(`[id="PegaGadget${node}Ifr"]`);
-
-        if (!frame) {
-          const iframeEl = await page.$(`iframe[id="PegaGadget${node}Ifr"]`);
-          frame = await iframeEl.contentFrame();
-        }
+        const iframeEl = await page.$(`iframe[id="PegaGadget${node}Ifr"]`);
+        frame = await iframeEl.contentFrame();
 
         await frame.waitForSelector('[id="12f20963"]');
         await frame.select('[id="12f20963"]', '76');
@@ -97,6 +98,7 @@ async function bot(config) {
         await retry(message, this.createForm);
       }
     },
+
     async handleForm(file) {
       try {
         const jobInput = await frame.waitForSelector('input[id="2bc4e467"]');
@@ -109,6 +111,7 @@ async function bot(config) {
         await retry(message, this.handleForm);
       }
     },
+
     async uploadFile(file) {
       try {
         const upload = await frame.waitForSelector('input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]');
@@ -128,19 +131,10 @@ async function bot(config) {
         await retry(message, this.uploadFile);
       }
     },
+
     async finishing() {
       try {
-        const confirmBtn = '[node_name="pyConfirmMessage"]';
-
-        try {
-          await frame.waitForSelector(confirmBtn);
-        } catch {
-          await frame.click('[title="Complete this assignment"]').catch();
-          await sleep(3000);
-          await frame.waitForSelector(confirmBtn);
-        }
-
-        await sleep(1000);
+        await sleep(8000);
         progress.update(100) || progress.stop();
       } catch ({ message }) {
         await retry(message, this.finishing);
@@ -162,7 +156,5 @@ async function startBrowser(config) {
   await page.goto(config.url);
   return { browser, page };
 }
-
-const startBtnSelector = `a[data-click="[["setMobileTransition",["pega.mobile.transitions.MOVE_FORWARD"]],["createNewWork",["ASM-HCC-Work-MitraActivity","","pyStartCase","&=","","","",{"target":"primary"},""]],["runScript",["removeScreenLayoutMask()"]]]"]`;
 
 export default bot;
