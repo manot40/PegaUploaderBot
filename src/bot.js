@@ -12,9 +12,11 @@ const progress = new cliProgress.SingleBar({
 
 const sleep = (timeout = 1000) => new Promise((r) => setTimeout(r, timeout));
 
-const bot = async (config) => {
+async function bot(config) {
   const { page } = await startBrowser(config);
   const temp = `./${config.folder}/.temp/`;
+
+  /** @type {import('puppeteer-core').Frame} */
   let frame, node;
 
   const reloadPage = async () => page.reload({ waitUntil: 'networkidle0' });
@@ -54,11 +56,15 @@ const bot = async (config) => {
     async beginInput() {
       try {
         progress.start(100, 0);
+        // Wait for the page to load
         await page.waitForSelector('li[title="Pengajuan"]');
-        await page.click('li[title="Pengajuan"]');
-        await sleep(100);
-        await page.mouse.click(330, 50);
-        await sleep(1500);
+        await page.mouse.click(10, 10);
+        await sleep(1000);
+
+        // Click Pengajuan
+        const start = await page.$$('a[role="menuitem"]');
+        await start[4].click();
+        await sleep(1000);
         progress.update(20);
       } catch ({ message }) {
         await retry(message, this.beginInput);
@@ -93,8 +99,8 @@ const bot = async (config) => {
     },
     async handleForm(file) {
       try {
-        await frame.waitForSelector('input[id="2bc4e467"]');
-        await frame.click('input[id="2bc4e467"]');
+        const jobInput = await frame.waitForSelector('input[id="2bc4e467"]');
+        await jobInput.click();
         config.customDesc.includes(store.getJob(0))
           ? await page.keyboard.type(file.slice(0, -4))
           : await page.keyboard.type(store.getJob(1));
@@ -105,17 +111,14 @@ const bot = async (config) => {
     },
     async uploadFile(file) {
       try {
-        const workSpace = 'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]';
-        await frame.waitForSelector(workSpace);
-        progress.update(60);
-        const uploadHandler = await frame.$(workSpace);
+        const upload = await frame.waitForSelector('input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]');
         progress.update(70);
-        await uploadHandler.uploadFile(temp + file);
+        await upload.uploadFile(temp + file);
 
         try {
           await frame.waitForSelector('div[node_name="pyCaseRelatedContentInner"]');
         } catch {
-          await frame.waitForSelector('div[id="pega_ui_mask"]', { hidden: true }).catch();
+          await frame.waitForSelector('div[id="pega_ui_mask"]', { hidden: true }).catch(() => {});
         }
 
         await sleep(1000);
@@ -144,7 +147,7 @@ const bot = async (config) => {
       }
     },
   };
-};
+}
 
 async function startBrowser(config) {
   const browser = await Puppeteer.launch({
@@ -159,5 +162,7 @@ async function startBrowser(config) {
   await page.goto(config.url);
   return { browser, page };
 }
+
+const startBtnSelector = `a[data-click="[["setMobileTransition",["pega.mobile.transitions.MOVE_FORWARD"]],["createNewWork",["ASM-HCC-Work-MitraActivity","","pyStartCase","&=","","","",{"target":"primary"},""]],["runScript",["removeScreenLayoutMask()"]]]"]`;
 
 export default bot;

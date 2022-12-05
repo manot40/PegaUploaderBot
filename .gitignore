@@ -1,5 +1,6 @@
 .env
 dist
+jobs.json
 node_modules
 log/compress-images/*
 log/puppeteer-bot/*

@@ -1,5 +1,24 @@
-const jobsId = process.env.BOT_JOBLIST_ID?.split(',') || [];
-const jobsName = process.env.BOT_JOBLIST_NAME?.split(',') || [];
+import { readFileSync, existsSync } from 'fs';
+
+if (!process.env.BOT_BROWSER) {
+  console.error('Browser location is not defined!');
+  process.exit(1);
+}
+
+if (!existsSync('./jobs.json')) {
+  console.error('Jobs file does not exist!');
+  process.exit(1);
+}
+
+/** @type {{ id: string[], name: string[], custom: string[] }} */
+let JOBS;
+
+try {
+  JOBS = JSON.parse(readFileSync('./jobs.json', { encoding: 'utf8' }));
+} catch (e) {
+  console.error('Invalid jobs definition!');
+  process.exit(1);
+}
 
 const config = {
   // Normally not changed
@@ -17,11 +36,11 @@ const config = {
     username: process.env.BOT_USERNAME || '',
     password: process.env.BOT_PASSWORD || '',
   },
-  jobName: process.env.JOB_NAME || 'The Job Name',
+  jobName: process.env.NAME || 'The Job Name',
   // Set true for unique description per post or false for auto generated description
-  customDesc: process.env.BOT_CUSTOM_JOB_DESC?.split(',') || [],
+  customDesc: JOBS.custom,
   // Make sure to create new folder inside 'images' folder corresponding to your job list
-  jobs: jobsId.map((id, i) => `(${id}) ${jobsName[i]}`),
+  jobs: JOBS.id.map((id, i) => `(${id}) ${JOBS.name[i]}`),
   config: {},
 };
 

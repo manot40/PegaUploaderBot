@@ -1,6 +1,6 @@
 import config, { jobs, fastLogin, folder } from './config';
 import { confirm, inputLogin, chooseJob } from './input';
-import Uploads from './uploads';
+import uploads from './uploads';
 import store from './store';
 import clear from 'clear';
 import chalk from 'chalk';
@@ -8,10 +8,10 @@ import Bot from './bot';
 
 clear();
 console.log(chalk.green(config.jobName));
-console.log('\n Ver: 2.2.0 \n');
+console.log('\n Ver: 2.4.0 \n');
 
 async function app() {
-  const line = '----------------------------------------------------------';
+  const line = '-'.repeat(58);
 
   let bot;
   let workDir;
@@ -24,7 +24,7 @@ async function app() {
 
     if (typeof isLoggedIn === 'undefined') {
       await chooseJob(jobs);
-      workDir = await Uploads(folder, store.getJob(1));
+      workDir = await uploads(folder, store.getJob(1));
       await confirm(workDir.uploads.length);
       bot = await Bot(config);
     }
