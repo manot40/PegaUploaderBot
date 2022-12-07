@@ -46,8 +46,10 @@ async function bot(config) {
           console.log('\x1b[31m', 'Incorrect Password/Username');
           console.log('\x1b[37m', 'Please Retry');
           return false;
-        } catch (err) {
+        } catch {
           await page.waitForSelector('li[title="Pengajuan"]');
+          await page.waitForNetworkIdle();
+          await sleep(3000);
         }
       } catch ({ message }) {
         return await retry(message, this.login);
@@ -58,14 +60,13 @@ async function bot(config) {
     async beginInput() {
       try {
         progress.start(100, 0);
-        // Wait for the page to load
-        await page.waitForSelector('li[title="Pengajuan"]');
         await page.mouse.click(10, 10);
-        await sleep(1000);
+        await sleep(750);
 
         // Click Pengajuan
         const start = await page.$$('a[role="menuitem"]');
         await start[4].click();
+        await sleep(750);
         await page.mouse.click(10, 10);
         await sleep(1000);
         progress.update(20);
@@ -81,9 +82,6 @@ async function bot(config) {
         frame = await iframeEl.contentFrame();
 
         await frame.waitForSelector('[id="12f20963"]');
-        await frame.select('[id="12f20963"]', '76');
-        await frame.select('[id="7336ae0d"]', '525');
-        await frame.select('[id="f5a7aff0"]', '176');
         await frame.select('[id="7fe8a912"]', store.getJob(0));
         await frame.click('[title="Complete this assignment"]');
 
