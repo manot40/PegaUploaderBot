@@ -13,13 +13,16 @@ const progress = new cliProgress.SingleBar({
 const sleep = (timeout = 1000) => new Promise((r) => setTimeout(r, timeout));
 
 async function bot(config) {
-  const { page } = await startBrowser(config);
-  const temp = `./${config.folder}/.temp/`;
+  let { page } = await startBrowser(config);
+  const tmpFolder = `./${config.folder}/.temp/`;
 
   /** @type {import('puppeteer-core').Frame} */
   let frame, node;
 
-  const reloadPage = async () => page.reload({ waitUntil: 'networkidle0' });
+  const reloadPage = async () => {
+    await page.reload({ waitUntil: 'networkidle0' });
+    await sleep(2000);
+  };
 
   async function retry(msg, cb) {
     console.error(msg);
@@ -28,15 +31,22 @@ async function bot(config) {
   }
 
   return {
-    sleep,
-    setNode: (i) => (node = i),
-    reloadPage,
+    setNode(i) {
+      node = i;
+    },
+
+    async reloadBrowser() {
+      ({ page } = await startBrowser(config));
+      await sleep(2000);
+      await this.login();
+    },
 
     async login() {
       try {
         await page.click('#txtUserID');
         await page.click('#txtUserID');
         await page.keyboard.type(store.getUsername());
+        await sleep(1000);
         await page.click('#txtPassword');
         await page.keyboard.type(store.getPassword());
         await page.click('#sub');
@@ -65,23 +75,25 @@ async function bot(config) {
 
         // Click Pengajuan
         const start = await page.$$('a[role="menuitem"]');
+        if (!start.length) throw new Error('Pengajuan button not found');
         await start[4].click();
         await sleep(750);
         await page.mouse.click(10, 10);
         await sleep(1000);
         progress.update(20);
       } catch ({ message }) {
+        progress.stop();
         await retry(message, this.beginInput);
       }
     },
 
     async createForm() {
       try {
-        await page.waitForSelector(`[id="PegaGadget${node}Ifr"]`);
-        const iframeEl = await page.$(`iframe[id="PegaGadget${node}Ifr"]`);
+        await reloadPage();
+        const iframeEl = await page.waitForSelector(`iframe#PegaGadget${node}Ifr`);
         frame = await iframeEl.contentFrame();
 
-        await frame.waitForSelector('[id="12f20963"]');
+        await frame.waitForSelector('[id="7fe8a912"]');
         await frame.select('[id="7fe8a912"]', store.getJob(0));
         await frame.click('[title="Complete this assignment"]');
 
@@ -114,10 +126,10 @@ async function bot(config) {
       try {
         const upload = await frame.waitForSelector('input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]');
         progress.update(70);
-        await upload.uploadFile(temp + file);
+        await upload.uploadFile(tmpFolder + file);
 
         try {
-          await frame.waitForSelector('div[node_name="pyCaseRelatedContentInner"]');
+          await frame.waitForSelector('div[node_name="pyCaseRelatedContentInner"]', { timeout: 30000 });
         } catch {
           await frame.waitForSelector('div[id="pega_ui_mask"]', { hidden: true }).catch(() => {});
         }
@@ -132,7 +144,7 @@ async function bot(config) {
 
     async finishing() {
       try {
-        await sleep(8000);
+        await sleep(6000);
         progress.update(100) || progress.stop();
       } catch ({ message }) {
         await retry(message, this.finishing);
@@ -149,7 +161,7 @@ async function startBrowser(config) {
   const page = await browser.newPage();
   const timeout = config.timeout * 1000;
   page.setViewport({ width: 1366, height: 768 });
-  page.on('dialog', async (d) => d.dismiss());
+  page.on('dialog', (d) => d.dismiss());
   page.setDefaultTimeout(timeout);
   await page.goto(config.url);
   return { browser, page };

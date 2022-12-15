@@ -28,8 +28,6 @@ const config = {
   chromePath: process.env.BOT_BROWSER,
   // Set pages timeout (in second)
   timeout: process.env.BOT_TIMEOUT || 10,
-  // Workaround for lag on low spec PC
-  antiLag: process.env.BOT_ANTILAG === 'true',
   // Fast login mode, set true to skip login inquirer every time use the bot
   fastLogin: {
     enabled: process.env.BOT_FASTLOGIN === 'true',

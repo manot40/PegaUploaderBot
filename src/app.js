@@ -17,7 +17,6 @@ async function app() {
   let workDir;
   let isLoggedIn;
   let pegaGadget = 0;
-  let resetCounter = 0;
 
   while (!isLoggedIn) {
     await inputLogin(fastLogin);
@@ -36,19 +35,14 @@ async function app() {
 
   // Begin uploading tasks
   for (const file of workDir.uploads) {
-    if (config.antiLag) {
-      if (resetCounter === 5) {
-        resetCounter = 0;
-        console.log('Reloading to avoid lag...');
-        await bot.reloadPage();
-        await bot.sleep(2000);
-      } else {
-        resetCounter++;
-      }
-    }
     console.log(line);
     if (await workDir.compressUpload(file)) {
-      pegaGadget < 15 ? pegaGadget++ : (pegaGadget = 1);
+      if (!!pegaGadget && pegaGadget % 5 === 0) {
+        pegaGadget = 0;
+        await bot.reloadBrowser();
+      }
+
+      pegaGadget++;
       console.log('Current file: ' + file);
       bot.setNode(pegaGadget);
       await bot.beginInput();
