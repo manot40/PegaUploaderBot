@@ -6,5 +6,5 @@ require('esbuild').build({
   platform: 'node',
   external: ['sharp'],
   outfile: 'dist/index.js',
-  entryPoints: ['index.js'],
+  entryPoints: ['src/index.ts'],
 });

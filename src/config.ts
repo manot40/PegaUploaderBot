@@ -1,4 +1,7 @@
+import dotenv from 'dotenv';
 import { readFileSync, existsSync } from 'fs';
+
+dotenv.config();
 
 if (!process.env.BOT_BROWSER) {
   console.error('Browser location is not defined!');
@@ -10,8 +13,7 @@ if (!existsSync('./jobs.json')) {
   process.exit(1);
 }
 
-/** @type {{ id: string[], name: string[], custom: string[] }} */
-let JOBS;
+let JOBS: { id: string[]; name: string[]; custom: string[] };
 
 try {
   JOBS = JSON.parse(readFileSync('./jobs.json', { encoding: 'utf8' }));
@@ -42,4 +44,6 @@ const config = {
   config: {},
 };
 
-module.exports = config;
+export type Config = typeof config;
+
+export default config;

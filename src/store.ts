@@ -1,17 +1,17 @@
-let username, password, job;
+let username: string, password: string, job: string[];
 
 const store = {
-  setAuth: (uname, psswd) => {
+  setAuth: (uname: string, psswd: string) => {
     username = uname;
     password = psswd;
   },
-  setUsername: (uname) => {
+  setUsername: (uname: string) => {
     username = uname;
   },
-  setPassword: (psswd) => {
+  setPassword: (psswd: string) => {
     password = psswd;
   },
-  setJob: (obj) => {
+  setJob: (obj: string[]) => {
     job = obj;
   },
   getUsername: () => {
@@ -20,7 +20,7 @@ const store = {
   getPassword: () => {
     return password;
   },
-  getJob: (i) => {
+  getJob: (i: number) => {
     return job[i];
   },
 };

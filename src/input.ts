@@ -1,3 +1,5 @@
+import type { Config } from 'config';
+
 import store from './store';
 import { prompt } from 'inquirer';
 
@@ -6,7 +8,7 @@ const login = [
     name: 'username',
     type: 'input',
     message: 'Username:',
-    validate: function (value) {
+    validate(value: string) {
       if (value.length) {
         store.setUsername(value);
         return true;
@@ -19,7 +21,7 @@ const login = [
     name: 'password',
     type: 'password',
     message: 'Password:',
-    validate: function (value) {
+    validate(value: string) {
       if (value.length) {
         store.setPassword(value);
         return true;
@@ -30,14 +32,14 @@ const login = [
   },
 ];
 
-const makeSure = (total) => ({
+const makeSure = (total: number | string) => ({
   name: 'sure',
-  type: 'confirm',
+  type: 'confirm' as any,
   message: `${total} file(s) found. All good? (Enter)`,
   default: true,
 });
 
-export const inputLogin = async (fastLogin) => {
+export const inputLogin = async (fastLogin: Config['fastLogin']) => {
   if (fastLogin.enabled) {
     console.log('\x1b[31m', 'Fast Login Active');
     store.setAuth(fastLogin.username, fastLogin.password);
@@ -47,7 +49,7 @@ export const inputLogin = async (fastLogin) => {
   }
 };
 
-export const chooseJob = async (jobs) => {
+export const chooseJob = async (jobs: Config['jobs']) => {
   if (!jobs?.length) throw new Error('No job list found');
 
   const { job } = await prompt({
@@ -62,7 +64,7 @@ export const chooseJob = async (jobs) => {
   store.setJob([jobId, jobName]);
 };
 
-export const confirm = async (len) => {
+export const confirm = async (len: number | string) => {
   await prompt(makeSure(len)).then((res) => {
     if (!res.sure) {
       console.log('Okay, take your time.');
