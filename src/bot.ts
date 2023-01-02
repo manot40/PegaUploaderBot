@@ -175,13 +175,16 @@ export default class Bot {
       await upload.uploadFile(`./${this.config.folder}/.temp/` + this.file);
       progress.update(70);
 
-      await this.frame
-        .waitForSelector('div[node_name="pyCaseRelatedContentInner"]', { timeout: 30000 })
-        .catch(() => this.frame!.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null));
+      try {
+        await this.frame.waitForSelector('i[title="No Items"]', { hidden: true, timeout: 30000 });
+      } catch {
+        await this.frame.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null);
+      }
 
       await sleep(1000);
+      const finishBtn = await this.frame.waitForSelector('button[title="Complete this assignment"]');
+      await finishBtn!.tap();
       progress.update(90);
-      await this.frame.click('[title="Complete this assignment"]');
     } catch (e: any) {
       await this.retry(e.messsage, this.uploadFile);
     }
