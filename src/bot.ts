@@ -108,12 +108,15 @@ export default class Bot {
       await this.page.mouse.click(10, 10);
       await sleep(750);
 
-      // Click Pengajuan
-      const start = await this.page.$$('a[role="menuitem"]');
-      if (!start.length) throw new Error('Pengajuan button not found');
-      await start[4].click();
-      await sleep(750);
-      await this.page.mouse.click(10, 10);
+      // Find input button
+      const inputS = 'a[data-click*="ASM-HCC-Work-MitraActivity"]';
+      await this.page.waitForSelector(inputS);
+      const [input] = (await this.page.$$(inputS)).filter((e) =>
+        e.evaluate((el) => el.textContent?.includes('NON BAS')),
+      );
+
+      // Click the button
+      await input.tap();
       await sleep(1000);
       progress.update(20);
     } catch (e: any) {
