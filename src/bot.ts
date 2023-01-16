@@ -105,7 +105,7 @@ export default class Bot {
     if (!this.page) throw new Error('Browser not initialized yet, Please login first!');
     try {
       progress.start(100, 0);
-      await this.page.mouse.click(10, 10);
+      await this.page.mouse.click(35, 80);
       await sleep(750);
 
       // Find input button
