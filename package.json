@@ -3,7 +3,7 @@
   "keywords": [],
   "license": "GPL-3.0",
   "author": "Kevin Sandiho",
-  "version": "2.2.1",
+  "version": "2.2.3",
   "bin": {
     "bot-pega-mitra": "dist/index.js"
   },
