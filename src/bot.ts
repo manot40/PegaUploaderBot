@@ -1,12 +1,12 @@
 import type { Config } from 'config';
 
-import colors from 'colors';
-import _progress from 'cli-progress';
-import Puppeteer, { Page, Frame } from 'puppeteer-core';
-
 import store from './store';
+import colors from 'colors';
+import Progress from 'cli-progress';
 
-const progress = new _progress.SingleBar({
+import Puppeteer, { type Page, type Frame, type ElementHandle as El } from 'puppeteer-core';
+
+const progress = new Progress.SingleBar({
   format: 'Uploading |' + colors.grey('{bar}') + '| {percentage}% |',
   hideCursor: true,
   forceRedraw: true,
@@ -108,16 +108,16 @@ export default class Bot {
       await this.page.mouse.click(35, 80);
       await sleep(750);
 
-      // Find input button
-      const inputS = 'a[data-click*="ASM-HCC-Work-MitraActivity"]';
-      await this.page.waitForSelector(inputS);
-      const [input] = (await this.page.$$(inputS)).filter((e) =>
-        e.evaluate((el) => el.textContent?.includes('NON BAS')),
-      );
+      // await this.page.mouse.click(40, 160);
+      // await sleep(1000);
 
-      // Click the button
-      await input.tap();
-      await sleep(1000);
+      const menuItems = await this.page.$x("//a[span[contains(., 'BAS')]]");
+      for (const item of menuItems as El<HTMLAnchorElement>[])
+        if (!(await item.isHidden())) {
+          await item.click();
+          break;
+        }
+
       progress.update(20);
     } catch (e: any) {
       await this.retry(e.message, this.beginInput);
@@ -136,7 +136,8 @@ export default class Bot {
       await this.frame.click('[title="Complete this assignment"]');
 
       try {
-        await this.frame.waitForSelector('div.iconErrorDiv', { timeout: 1500 });
+        await sleep(1000);
+        await this.frame.waitForSelector('div.iconErrorDiv', { timeout: 1000 });
         console.log('\x1b[31m', 'Job Not Found. Retrying...');
         await this.createForm();
       } catch {
@@ -181,9 +182,10 @@ export default class Bot {
         await this.frame.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null);
       }
 
-      await sleep(1000);
+      await sleep(750);
       const finishBtn = await this.frame.waitForSelector('button[title="Complete this assignment"]');
-      await finishBtn!.tap();
+      await sleep(750);
+      await finishBtn!.click();
       progress.update(90);
     } catch (e: any) {
       await this.retry(e.messsage, this.uploadFile);

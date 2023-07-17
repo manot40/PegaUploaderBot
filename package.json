@@ -7,13 +7,14 @@
   "bin": {
     "bot-pega-mitra": "dist/index.js"
   },
+  "main": "dist/index.js",
   "description": "",
   "scripts": {
-    "start": "node dist",
-    "build": "node build",
-    "package": "npm run build && pkg -C Brotli .",
     "dev": "npm run build && node --enable-source-maps dist",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node dist",
+    "build": "node build.mjs",
+    "package": "npm run build && pkg -C Brotli .",
+    "prepublish": "npm run build"
   },
   "dependencies": {
     "sharp": "0.31.2"
@@ -26,17 +27,17 @@
     "@types/sharp": "^0.31.0",
     "chalk": "4.1.2",
     "clear": "0.1.0",
-    "cli-progress": "3.11.2",
+    "cli-progress": "3.12.0",
     "colors": "1.4.0",
-    "dotenv": "16.0.3",
-    "esbuild": "0.15.10",
+    "dotenv": "16.3.1",
+    "esbuild": "0.18.13",
     "inquirer": "8.2.5",
-    "pkg": "5.8.0",
-    "puppeteer-core": "19.1.1",
-    "typescript": "4.9.4"
+    "pkg": "5.8.1",
+    "puppeteer-core": "20.8.2",
+    "typescript": "5.1.6"
   },
   "engines": {
-    "node": ">=14.x.x"
+    "node": ">=14.x"
   },
   "prettier": {
     "singleQuote": true,

@@ -1,4 +1,6 @@
-require('esbuild').build({
+import { build } from 'esbuild';
+
+build({
   bundle: true,
   minify: true,
   sourcemap: true,
