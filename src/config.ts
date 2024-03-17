@@ -19,6 +19,7 @@ let jobs: Job[];
 
 try {
   jobs = JSON.parse(fs.readFileSync('./jobs.json', { encoding: 'utf8' }));
+  if (!Array.isArray(jobs)) throw new Error();
 } catch (e) {
   console.error('Invalid jobs definition!');
   process.exit(1);
