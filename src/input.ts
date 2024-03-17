@@ -1,7 +1,9 @@
-import type { Config } from 'config';
+import config from './config';
+import inquirer from 'inquirer';
 
 import store from './store';
-import { prompt } from 'inquirer';
+
+const prompt = inquirer.createPromptModule();
 
 const login = [
   {
@@ -39,30 +41,34 @@ const makeSure = (total: number | string) => ({
   default: true,
 });
 
-export const inputLogin = async (fastLogin: Config['fastLogin']) => {
-  if (fastLogin.enabled) {
+export async function inputLogin() {
+  const fl = config.fastLogin;
+  if (fl?.enabled) {
     console.log('\x1b[31m', 'Fast Login Active');
-    store.setAuth(fastLogin.username, fastLogin.password);
-    console.log('\x1b[37m', `Logged in as: ${fastLogin.username}\n`);
+    store.setUsername(fl.username).setPassword(fl.password);
+    console.log('\x1b[37m', `Logged in as: ${fl.username}\n`);
   } else {
     await prompt(login);
   }
-};
+}
 
-export const chooseJob = async (jobs: Config['jobs']) => {
-  if (!jobs?.length) throw new Error('No job list found');
+export async function chooseJob() {
+  if (!config.jobs.length) throw new Error('No job list found');
+
+  const choices = config.jobs.map((job) => ({
+    name: job.name,
+    value: { name: job.name, id: `${+job.id}` },
+  }));
 
   const { job } = await prompt({
     name: 'job',
     type: 'list',
+    choices,
     message: 'Choose job to be uploaded:',
-    choices: jobs,
-  }).catch(() => {});
+  });
 
-  const jobId = (+job.match(/(?<=\()(.*)(?=\))/g)[0]).toString();
-  const jobName = job.match(/(?<=\))(.*)/g)[0]?.trim();
-  store.setJob([jobId, jobName]);
-};
+  return store.setJob(job).job!;
+}
 
 export const confirm = async (len: number | string) => {
   await prompt(makeSure(len)).then((res) => {

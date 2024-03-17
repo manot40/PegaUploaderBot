@@ -1,65 +1,68 @@
-import { confirm, inputLogin, chooseJob } from './input';
-import config from './config';
-import files from './files';
-import store from './store';
-import clear from 'clear';
-import chalk from 'chalk';
 import Bot from './bot';
+import kleur from 'kleur';
+import config from './config';
 
-clear();
-console.log(chalk.green(config.jobName));
-console.log('\n Ver: 2.4.0 \n');
+import FileHandler from './files';
+import { confirm, inputLogin, chooseJob } from './input';
 
-(async () => {
-  let pegaGadget = 0;
-  const bot = new Bot(config);
+main();
+console.log(kleur.green(config.jobName));
+console.log('\n Ver: 2.2.4 \n');
+
+async function main() {
+  let iframeNode = 0;
+  const bot = new Bot();
   const line = '-'.repeat(58);
 
-  await inputLogin(config.fastLogin);
-  await chooseJob(config.jobs);
-  const workDir = await files(config.folder, store.getJob(1));
-  await confirm(workDir.files.length);
+  await inputLogin();
 
-  // Begin uploading tasks
-  await bot.login();
-  let remaining = workDir.files.length;
-  for (const file of workDir.files) {
+  const job = await chooseJob();
+  const handler = new FileHandler(job);
+
+  await handler
+    .init()
+    .then((h) => confirm(h.files.length))
+    .then(() => bot.login());
+
+  let remaining = handler.files.length;
+  for (const file of handler.files) {
     try {
       console.log(line);
-      if (await workDir.compressFile(file)) {
-        // Prevent Memory Leak
-        if (!!pegaGadget && pegaGadget % 5 === 0) {
-          pegaGadget = 0;
-          await bot.reload();
-        }
+      const { result: compressed } = await handler.compress(file);
 
-        // Initialization
-        console.log('Current file:', file);
-        bot.setNode(++pegaGadget);
-        bot.setFile(file);
-
-        // Bot Operations
-        await bot.beginInput();
-        await bot.createForm();
-        await bot.handleForm();
-        await bot.uploadFile();
-        await bot.finishing();
-
-        // Cleanup
-        await workDir.cleanup(file);
-        if (pegaGadget === 15) pegaGadget = 0;
-        console.log('UPLOAD SUKSES! Sisa upload: ' + --remaining);
-      } else {
-        await workDir.skip(file);
-        console.log('\x1b[31m', 'File cannot be compressed!');
-        console.log('\x1b[37m', file + ' will be skipped');
+      if (!compressed) {
+        await handler.trash(file);
+        console.log(kleur.red('File cannot be compressed!'));
+        console.log(`${file} will be skipped`);
+        continue;
       }
+
+      // Out-of-Memory Prevention
+      if (!!iframeNode && iframeNode % 5 === 0) {
+        iframeNode = 0;
+        await bot.reload();
+      }
+
+      iframeNode++;
+      console.log('Current file:', file);
+
+      // Bot Operations
+      await bot.beginInput();
+      await bot.createForm(iframeNode);
+      await bot.handleForm(file);
+      await bot.uploadFile(file);
+      await bot.finishing();
+
+      // Cleanup
+      await handler.cleanup(file);
+      if (iframeNode === 15) iframeNode = 0;
+      console.log(`${kleur.green('UPLOAD SUKSES!')} Sisa file: ${--remaining}`);
     } catch (e: any) {
-      console.error(`\x1b[31m Tidak dapat mengupload file ${file}. Reason: ${e.message} \x1b[37m`);
+      console.error(`${kleur.red(`Tidak dapat mengupload file ${file}`)}. Reason: ${e.message}`);
     }
   }
 
   console.log(line);
   console.log('All Job Done!');
   process.exit(0);
-})();
+}

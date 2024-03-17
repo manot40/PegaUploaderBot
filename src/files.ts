@@ -1,51 +1,77 @@
+import type { Job } from 'store';
+
+import fs from 'fs/promises';
+import kleur from 'kleur';
 import sharp from 'sharp';
-import { readdir, mkdir, unlink, rename } from 'fs/promises';
+import config from './config';
 
-async function files(folder: string, job: string) {
-  const dir = `./${folder}/${job}`;
-  const temp = `./${folder}/.temp`;
-  const trash = `./${folder}/trash`;
+class FileHandler {
+  private dir: string;
+  private temp: string;
+  private trashDir: string;
+  private initialized = false;
 
-  await mkdir(dir, { recursive: true }).catch(() => {});
-  await mkdir(temp, { recursive: true }).catch(() => {});
-  await mkdir(trash, { recursive: true }).catch(() => {});
+  public files: string[] = [];
 
-  const files = await readdir(dir);
-
-  if (!files.length) {
-    console.log('\x1b[31m', 'FOLDER KOSONG!', '\x1b[37m');
-    process.exit(1);
+  constructor(job: Job) {
+    const folder = config.folder;
+    this.dir = `./${folder}/${job.name}`;
+    this.temp = `./${folder}/.temp`;
+    this.trashDir = `./${folder}/trash`;
   }
 
-  return {
-    files,
-    async compressFile(file: string) {
-      try {
-        await sharp(`${dir}/${file}`).jpeg({ quality: 30 }).toFile(`${temp}/${file}`);
-        return true;
-      } catch (e: any) {
-        console.log(e.message);
-        return false;
-      }
-    },
+  async init() {
+    if (this.initialized) return this;
+    await fs.mkdir(this.dir, { recursive: true }).catch(() => {});
+    await fs.mkdir(this.temp, { recursive: true }).catch(() => {});
+    await fs.mkdir(this.trashDir, { recursive: true }).catch(() => {});
 
-    async cleanup(file: string) {
-      try {
-        await rename(`${temp}/${file}`, `${trash}/${file}`);
-        await unlink(`${dir}/${file}`);
-      } catch (e: any) {
-        console.log(e.message);
-      }
-    },
+    const files = (this.files = await fs.readdir(this.dir));
+    if (!files.length) {
+      console.log(kleur.red('FOLDER KOSONG!'));
+      process.exit(1);
+    }
 
-    async skip(file: string) {
-      try {
-        await rename(`${dir}/${file}`, `${trash}/${file}`);
-      } catch (e: any) {
-        console.log(e.message);
-      }
-    },
-  };
+    this.initialized = true;
+    return this;
+  }
+
+  async compress(file: string | number): Promise<Result<sharp.OutputInfo>> {
+    try {
+      const _file = typeof file === 'number' ? this.files[file] : file;
+      const result = await sharp(`${this.dir}/${_file}`).jpeg({ quality: 30 }).toFile(`${this.temp}/${file}`);
+      return { result };
+    } catch (error: any) {
+      console.error(error.message);
+      return { error };
+    }
+  }
+
+  async cleanup(file: string | number): Promise<Result<true>> {
+    try {
+      const _file = typeof file === 'number' ? this.files[file] : file;
+      const dir = [`${this.temp}/${_file}`, `${this.trashDir}/${_file}`] as const;
+      return fs.rename(...dir).then(() => {
+        fs.unlink(`${this.dir}/${_file}`).catch(() => void 0);
+        return { result: true };
+      });
+    } catch (error: any) {
+      return { error };
+    }
+  }
+
+  async trash(file: string | number): Promise<Result<true>> {
+    try {
+      const _file = typeof file === 'number' ? this.files[file] : file;
+      await fs.rename(`${this.dir}/${_file}`, `${this.trashDir}/${_file}`);
+      return { result: true };
+    } catch (error: any) {
+      console.log(error.message);
+      return { error };
+    }
+  }
 }
 
-export default files;
+type Result<T> = { result: T; error?: never } | { result?: never; error: Error };
+
+export default FileHandler;

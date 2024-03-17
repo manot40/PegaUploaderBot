@@ -1,5 +1,7 @@
+import type { Job } from 'store';
+
+import fs from 'fs';
 import dotenv from 'dotenv';
-import { readFileSync, existsSync } from 'fs';
 
 dotenv.config();
 
@@ -8,15 +10,15 @@ if (!process.env.BOT_BROWSER) {
   process.exit(1);
 }
 
-if (!existsSync('./jobs.json')) {
+if (!fs.existsSync('./jobs.json')) {
   console.error('Jobs file does not exist!');
   process.exit(1);
 }
 
-let JOBS: { id: string[]; name: string[]; custom: string[] };
+let jobs: Job[];
 
 try {
-  JOBS = JSON.parse(readFileSync('./jobs.json', { encoding: 'utf8' }));
+  jobs = JSON.parse(fs.readFileSync('./jobs.json', { encoding: 'utf8' }));
 } catch (e) {
   console.error('Invalid jobs definition!');
   process.exit(1);
@@ -37,10 +39,8 @@ const config = {
     password: process.env.BOT_PASSWORD || '',
   },
   jobName: process.env.BOT_NAME || 'The Job Name',
-  // Set true for unique description per post or false for auto generated description
-  customDesc: JOBS.custom,
   // Make sure to create new folder inside 'images' folder corresponding to your job list
-  jobs: JOBS.id.map((id, i) => `(${id}) ${JOBS.name[i]}`),
+  jobs,
   config: {},
 };
 

@@ -1,0 +1,11 @@
+[
+  {
+    "id": "1",
+    "name": "JOB 1",
+    "custom": true
+  },
+  {
+    "id": "2",
+    "name": "JOB 2"
+  }
+]

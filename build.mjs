@@ -3,10 +3,10 @@ import { build } from 'esbuild';
 build({
   bundle: true,
   minify: true,
-  sourcemap: true,
-  target: 'node14',
+  target: 'node16',
+  outfile: 'dist/index.js',
   platform: 'node',
   external: ['sharp'],
-  outfile: 'dist/index.js',
+  sourcemap: true,
   entryPoints: ['src/index.ts'],
 });
