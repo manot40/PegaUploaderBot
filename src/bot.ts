@@ -47,8 +47,9 @@ export default class Bot {
     await sleep(2000);
   }
 
-  private async retry(msg: string, cb: () => Promise<any>) {
-    console.log('\n', msg, '\n');
+  private async retry(err: Error, cb: () => Promise<void>) {
+    const message = process.env.NODE_ENV === 'production' ? `${err.message}\n` : err;
+    console.log('\n', message);
     await this.reloadPage();
     return await cb();
   }
@@ -76,24 +77,25 @@ export default class Bot {
         await this.page.waitForSelector('#errorDiv', { timeout: 500 });
         console.log(kleur.red('Incorrect Password/Username'));
         console.log('Please Retry');
-        return false;
+        return;
       } catch {
         await this.page.waitForSelector('li[title="Pengajuan"]');
         await this.page.waitForNetworkIdle();
         await sleep(3000);
       }
     } catch (e: any) {
-      return await this.retry(e.message, this.login);
+      await this.retry(e, this.login);
+      return;
     }
-    return true;
+    return;
   }
 
   public async beginInput() {
     if (!this.page) throw new Error(NO_BROWSER);
     try {
       this.progress.start(100, 0);
-      await this.page.mouse.click(35, 80);
-      await sleep(750);
+      await this.page.mouse.click(32, 60);
+      await sleep(500);
 
       const menuItems = await this.page.$x("//a[span[contains(., 'BAS')]]");
       for (const item of menuItems as El<HTMLAnchorElement>[])
@@ -104,7 +106,7 @@ export default class Bot {
 
       this.progress.update(20);
     } catch (e: any) {
-      await this.retry(e.message, this.beginInput);
+      await this.retry(e, this.beginInput);
     }
   }
 

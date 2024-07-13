@@ -18,8 +18,10 @@ if (!fs.existsSync('./jobs.json')) {
 let jobs: Job[];
 
 try {
-  jobs = JSON.parse(fs.readFileSync('./jobs.json', { encoding: 'utf8' }));
-  if (!Array.isArray(jobs)) throw new Error();
+  const escape = (str: string) => str.replace(/(\\|\/)/g, ' ');
+  const data = JSON.parse(fs.readFileSync('./jobs.json', { encoding: 'utf8' }));
+  if (!Array.isArray(data)) throw new Error();
+  jobs = data.map((d) => ({ ...d, name: escape(d.name) }));
 } catch (e) {
   console.error('Invalid jobs definition!');
   process.exit(1);

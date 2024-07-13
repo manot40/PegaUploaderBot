@@ -11,17 +11,17 @@ console.log('\n Ver: 2.2.4 \n');
 
 async function main() {
   let iframeNode = 0;
-  const bot = new Bot();
   const line = '-'.repeat(58);
 
-  await inputLogin();
-
-  const job = await chooseJob();
-  const handler = new FileHandler(job);
+  const bot = new Bot();
+  const handler = new FileHandler();
 
   await handler
     .init()
-    .then((h) => confirm(h.files.length))
+    .then(inputLogin)
+    .then(chooseJob)
+    .then((job) => handler.scanDir(job.name))
+    .then((files) => confirm(files.length))
     .then(() => bot.login());
 
   let remaining = handler.files.length;
