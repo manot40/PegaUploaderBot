@@ -1,9 +1,13 @@
 import fs from 'fs/promises';
 import kleur from 'kleur';
-import sharp from 'sharp';
 import config from './config';
 
+import { cpus } from 'os';
+import { ImagePool, type EncodeResult } from '@squoosh/lib';
+
 const folder = config.folder;
+const imagePool = new ImagePool(cpus().length);
+
 class FileHandler {
   private dir: string | null = null;
   private temp: string;
@@ -43,11 +47,17 @@ class FileHandler {
     return files;
   }
 
-  async compress(file: string | number): Promise<Result<sharp.OutputInfo>> {
+  async compress(file: string | number): Promise<Result<EncodeResult>> {
     try {
       if (!this.dir) throw new Error('Directory not set!');
       const _file = typeof file === 'number' ? this.files[file] : file;
-      const result = await sharp(`${this.dir}/${_file}`).jpeg({ quality: 30 }).toFile(`${this.temp}/${file}`);
+      const fileBuff = await fs.readFile(`${this.dir}/${_file}`);
+
+      const image = imagePool.ingestImage(fileBuff);
+      const { mozjpeg: result } = await image.encode({ mozjpeg: { quality: 65 } });
+
+      const fileName = `${this.temp}/${_file}${!/(jpe?g)/.test(_file) ? '.'.concat(result.extension) : ''}`;
+      await fs.writeFile(fileName, result.binary);
       return { result };
     } catch (error: any) {
       console.error(error.message);

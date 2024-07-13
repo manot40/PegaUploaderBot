@@ -11,27 +11,22 @@
     "build": "node build.mjs",
     "package": "npm run build && pkg -C Brotli ."
   },
-  "bin": {
-    "bot-pega-mitra": "dist/index.js"
-  },
   "engines": {
     "node": "^16.x || ^14.x"
   },
   "dependencies": {
-    "sharp": "0.31.2"
+    "@squoosh/lib": "^0.5.3"
   },
   "devDependencies": {
     "@types/cli-progress": "3.11.5",
     "@types/colors": "1.2.1",
     "@types/inquirer": "8.2.10",
-    "@types/sharp": "0.31.1",
     "cli-progress": "3.12.0",
     "dotenv": "16.4.5",
     "esbuild": "0.20.2",
     "inquirer": "8.2.6",
     "kleur": "4.1.5",
     "nanoevents": "8.0.0",
-    "pkg": "5.8.1",
     "puppeteer-core": "21.11.0",
     "typescript": "5.4.2"
   },
@@ -39,15 +34,5 @@
     "printWidth": 120,
     "singleQuote": true,
     "trailingComma": "all"
-  },
-  "pkg": {
-    "assets": [
-      "node_modules/sharp/build/Release"
-    ],
-    "targets": [
-      "node16-win-x64"
-    ],
-    "scripts": "dist/*.js",
-    "outputPath": "dist"
   }
 }
