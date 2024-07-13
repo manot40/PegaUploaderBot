@@ -1,8 +1,8 @@
-import Bot from './bot';
 import kleur from 'kleur';
 import config from './config';
 
 import FileHandler from './files';
+import { ClassicBot, DirectBot } from './bot';
 import { confirm, inputLogin, chooseJob } from './input';
 
 main();
@@ -10,10 +10,10 @@ console.log(kleur.green(config.jobName));
 console.log('\n Ver: 2.2.4 \n');
 
 async function main() {
-  let iframeNode = 0;
+  let formNode = 0;
   const line = '-'.repeat(58);
 
-  const bot = new Bot();
+  const bot = config.isDirect ? new DirectBot() : new ClassicBot();
   const handler = new FileHandler();
 
   await handler
@@ -38,24 +38,23 @@ async function main() {
       }
 
       // Out-of-Memory Prevention
-      if (!!iframeNode && iframeNode % 5 === 0) {
-        iframeNode = 0;
+      if (!!formNode && formNode % 5 === 0) {
+        formNode = 0;
         await bot.reload();
       }
 
-      iframeNode++;
+      formNode++;
       console.log('Current file:', file);
 
       // Bot Operations
-      await bot.beginInput();
-      await bot.createForm(iframeNode);
+      await bot.openForm();
+      if (bot instanceof ClassicBot) await bot.createIframe(formNode);
       await bot.handleForm(file);
-      await bot.uploadFile(file);
       await bot.finishing();
 
       // Cleanup
       await handler.cleanup(file);
-      if (iframeNode === 15) iframeNode = 0;
+      if (formNode === 15) formNode = 0;
       console.log(`${kleur.green('UPLOAD SUKSES!')} Sisa file: ${--remaining}`);
     } catch (e: any) {
       console.error(`${kleur.red(`Tidak dapat mengupload file ${file}`)}. Reason: ${e.message}`);
