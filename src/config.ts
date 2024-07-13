@@ -32,6 +32,7 @@ const config = {
   folder: 'images',
   url: process.env.BOT_URL || '',
   silent: process.env.BOT_SILENT === 'true',
+  isDirect: process.env.BOT_DIRECT === 'true',
   chromePath: process.env.BOT_BROWSER,
   // Set pages timeout (in second)
   timeout: process.env.BOT_TIMEOUT || 10,
@@ -49,4 +50,4 @@ const config = {
 
 export type Config = typeof config;
 
-export default config;
+export default Object.freeze(config);
