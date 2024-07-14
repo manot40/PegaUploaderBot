@@ -1,15 +1,18 @@
 import kleur from 'kleur';
-import config from './config';
+import config from 'config';
+import FileHandler from 'files';
 
-import FileHandler from './files';
-import { ClassicBot, DirectBot } from './bot';
-import { confirm, inputLogin, chooseJob } from './input';
+import { checkLicense } from 'utils';
+import { ClassicBot, DirectBot } from 'bot';
+import { confirm, inputLogin, chooseJob } from 'input';
 
 main();
 console.log(kleur.green(config.jobName));
 console.log('\n Ver: 2.2.5 \n');
 
 async function main() {
+  await checkLicense();
+
   let formNode = 0;
   const line = '-'.repeat(58);
 

@@ -43,7 +43,7 @@
       "dist/vips"
     ],
     "targets": [
-      "node16-win"
+      "node18-win"
     ]
   }
 }
