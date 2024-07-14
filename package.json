@@ -2,7 +2,7 @@
   "name": "bot-pega-mitra",
   "main": "dist/index.js",
   "author": "Kevin Sandiho",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "license": "GPL-3.0",
   "description": "",
   "bin": {
