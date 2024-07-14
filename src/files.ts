@@ -54,10 +54,16 @@ class FileHandler {
 
       vips ??= await Vips();
       const image = vips.Image.newFromBuffer(fileBuff);
-      const result = image.thumbnailImage(image.width / 2).writeToBuffer('.jpg');
+      if (image.width > 1920) {
+        var result = image.thumbnailImage(image.width / 4).writeToBuffer('.jpg', { Q: 75 });
+      } else {
+        var result = image.writeToBuffer('.jpg', { Q: 60 });
+      }
 
       const fileName = `${this.temp}/${_file.split('.').at(0)}.jpg`;
       await fs.writeFile(fileName, result);
+
+      image.delete();
       return { result };
     } catch (error: any) {
       console.error(error.message);
