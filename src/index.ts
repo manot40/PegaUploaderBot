@@ -7,7 +7,7 @@ import { confirm, inputLogin, chooseJob } from './input';
 
 main();
 console.log(kleur.green(config.jobName));
-console.log('\n Ver: 2.2.4 \n');
+console.log('\n Ver: 2.2.5 \n');
 
 async function main() {
   let formNode = 0;
@@ -49,7 +49,7 @@ async function main() {
       // Bot Operations
       await bot.openForm();
       if (bot instanceof ClassicBot) await bot.createIframe(formNode);
-      await bot.handleForm(file);
+      await bot.handleForm(compressed);
       await bot.finishing();
 
       // Cleanup
@@ -64,4 +64,13 @@ async function main() {
   console.log(line);
   console.log('All Job Done!');
   process.exit(0);
+}
+
+process.on('uncaughtException', handleError);
+process.on('unhandledRejection', handleError);
+async function handleError(error: Error) {
+  console.error(kleur.red('Fatal:'), error?.message || 'Unknown Error');
+  console.info('Press CTRL+C to exit...');
+  await new Promise((r) => process.stdin.once('data', r));
+  process.exit(1);
 }

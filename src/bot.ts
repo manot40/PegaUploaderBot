@@ -1,5 +1,6 @@
 import type { Page, Frame, ElementHandle as El, Browser } from 'puppeteer-core';
 
+import path from 'path';
 import kleur from 'kleur';
 import store from './store';
 import Progress from 'cli-progress';
@@ -46,11 +47,10 @@ class Bot {
     await sleep(2000);
   }
 
-  protected async clearError(err: Error, cb: () => Promise<void>) {
+  protected clearError(err: Error, cb: () => Promise<void>) {
     const message = process.env.NODE_ENV === 'production' ? `${err.message}\n` : err;
     console.log('\n', message);
-    await this.reloadPage();
-    return await cb();
+    return this.reloadPage().then(cb);
   }
 
   async reload() {
@@ -106,7 +106,7 @@ class Bot {
     }
   }
 
-  protected async fillForm(path: string) {
+  protected async fillForm(fileName: string) {
     if (!this.target) throw new Error(NO_TARGET);
 
     const jobInput = await this.target.waitForSelector('input[id="2bc4e467"]');
@@ -116,29 +116,30 @@ class Bot {
     /* Fill Job and Description */
     const job = store.job;
     await jobInput.click();
-    await this.page?.keyboard.type(job.custom ? path.slice(0, -4) : job.name);
+    await this.page?.keyboard.type(job.custom ? fileName.slice(0, -4) : job.name);
     this.progress.update(50);
 
     /* Upload Work Image */
-    const upload = await this.target.waitForSelector<'input'>(
-      'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]' as any,
+    const upload = await this.target.waitForSelector(
+      'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]' as 'input',
     );
     if (!upload) throw new Error('Upload input not found');
-    await upload.uploadFile(`./${this.config.folder}/.temp/` + path);
+    await sleep(1000);
+    await upload.uploadFile(path.join(process.cwd(), `/${this.config.folder}/.temp/${fileName}`));
     this.progress.update(70);
 
     await this.target.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null);
-    await sleep(750);
-
-    /* Check if Upload Succeeded */
-    const finishBtn = await this.target.waitForSelector('button[title="Complete this assignment"]');
-    await sleep(750);
-    await finishBtn!.click();
-    this.progress.update(90);
+    await sleep(1000);
   }
 
   protected async submitForm() {
     if (!this.target) throw new Error(NO_TARGET);
+    const finishBtn = await this.target.waitForSelector('button[title="Complete this assignment"]');
+    await sleep(750);
+    await finishBtn!.click();
+    this.progress.update(90);
+
+    /* Check if Upload Succeeded */
     await this.target.waitForSelector('[title="Complete this assignment"]', { hidden: true });
     await sleep(2000);
     this.progress.update(100);

@@ -20,6 +20,11 @@ class FileHandler {
     this.trashDir = `./${folder}/trash`;
   }
 
+  private static remExt(file: string) {
+    const regex = /\.[a-z0-9]+$/i;
+    return file.replace(regex, '').trim();
+  }
+
   async init() {
     if (this.initialized) return this;
     await Promise.allSettled([
@@ -46,7 +51,7 @@ class FileHandler {
     return files;
   }
 
-  async compress(file: string | number): Promise<Result<Uint8Array>> {
+  async compress(file: string | number): Promise<Result<string>> {
     try {
       if (!this.dir) throw new Error('Directory not set!');
       const _file = typeof file === 'number' ? this.files[file] : file;
@@ -60,11 +65,12 @@ class FileHandler {
         var result = image.writeToBuffer('.jpg', { Q: 60 });
       }
 
-      const fileName = `${this.temp}/${_file.split('.').at(0)}.jpg`;
-      await fs.writeFile(fileName, result);
+      const fileName = `${FileHandler.remExt(_file)}.jpg`;
+      const resultPath = `${this.temp}/${fileName}`;
+      await fs.writeFile(resultPath, result);
 
       image.delete();
-      return { result };
+      return { result: fileName };
     } catch (error: any) {
       console.error(error.message);
       return { error };
@@ -75,7 +81,8 @@ class FileHandler {
     try {
       if (!this.dir) throw new Error('Directory not set!');
       const _file = typeof file === 'number' ? this.files[file] : file;
-      const dir = [`${this.temp}/${_file}`, `${this.trashDir}/${_file}`] as const;
+      const fileJpg = FileHandler.remExt(_file) + '.jpg';
+      const dir = [`${this.temp}/${fileJpg}`, `${this.trashDir}/${fileJpg}`] as const;
       return fs.rename(...dir).then(() => {
         fs.unlink(`${this.dir}/${_file}`).catch(() => void 0);
         return { result: true };
