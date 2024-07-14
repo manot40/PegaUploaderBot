@@ -14,9 +14,6 @@
   "engines": {
     "node": "^16.x || ^14.x"
   },
-  "dependencies": {
-    "@squoosh/lib": "^0.5.3"
-  },
   "devDependencies": {
     "@types/cli-progress": "3.11.5",
     "@types/colors": "1.2.1",

@@ -2,11 +2,10 @@ import fs from 'fs/promises';
 import kleur from 'kleur';
 import config from './config';
 
-import { cpus } from 'os';
-import { ImagePool, type EncodeResult } from '@squoosh/lib';
+import Vips from './vips/index.js';
 
+let vips: typeof Vips | undefined;
 const folder = config.folder;
-const imagePool = new ImagePool(cpus().length);
 
 class FileHandler {
   private dir: string | null = null;
@@ -47,17 +46,18 @@ class FileHandler {
     return files;
   }
 
-  async compress(file: string | number): Promise<Result<EncodeResult>> {
+  async compress(file: string | number): Promise<Result<Uint8Array>> {
     try {
       if (!this.dir) throw new Error('Directory not set!');
       const _file = typeof file === 'number' ? this.files[file] : file;
       const fileBuff = await fs.readFile(`${this.dir}/${_file}`);
 
-      const image = imagePool.ingestImage(fileBuff);
-      const { mozjpeg: result } = await image.encode({ mozjpeg: { quality: 65 } });
+      vips ??= await Vips();
+      const image = vips.Image.newFromBuffer(fileBuff);
+      const result = image.thumbnailImage(image.width / 2).writeToBuffer('.jpg');
 
-      const fileName = `${this.temp}/${_file}${!/(jpe?g)/.test(_file) ? '.'.concat(result.extension) : ''}`;
-      await fs.writeFile(fileName, result.binary);
+      const fileName = `${this.temp}/${_file.split('.').at(0)}.jpg`;
+      await fs.writeFile(fileName, result);
       return { result };
     } catch (error: any) {
       console.error(error.message);

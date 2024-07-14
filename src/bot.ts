@@ -12,6 +12,7 @@ const sleep = (timeout = 1000) => new Promise((r) => setTimeout(r, timeout));
 
 class Bot {
   protected page: Page | undefined;
+  protected target: Frame | undefined;
   protected browser: Browser | undefined;
   protected progress = new Progress.SingleBar({
     format,
@@ -86,16 +87,17 @@ class Bot {
     }
   }
 
-  protected async selectJob(target: Page | Frame) {
+  protected async selectJob() {
     if (!store.job) throw new Error(NO_JOB);
+    if (!this.target) throw new Error(NO_TARGET);
 
-    const jobList = await target.waitForSelector('select[name="$PpyWorkPage$pMitraActId"]');
+    const jobList = await this.target.waitForSelector('select[name="$PpyWorkPage$pMitraActId"]');
     await jobList!.select(store.job.id);
-    await target.click('[title="Complete this assignment"]');
+    await this.target.click('[title="Complete this assignment"]');
 
     try {
       await sleep(1000);
-      await target.waitForSelector('div.iconErrorDiv', { timeout: 1000 });
+      await this.target.waitForSelector('div.iconErrorDiv', { timeout: 1000 });
       console.log(kleur.red('Job Not Found. Retrying...'));
       return { error: 'Cannot find matching job' };
     } catch {
@@ -104,8 +106,10 @@ class Bot {
     }
   }
 
-  protected async fillForm(target: Page | Frame, path: string) {
-    const jobInput = await target.waitForSelector('input[id="2bc4e467"]');
+  protected async fillForm(path: string) {
+    if (!this.target) throw new Error(NO_TARGET);
+
+    const jobInput = await this.target.waitForSelector('input[id="2bc4e467"]');
     if (!jobInput) throw new Error('Job input not found');
     if (!store.job) throw new Error(NO_JOB);
 
@@ -116,33 +120,32 @@ class Bot {
     this.progress.update(50);
 
     /* Upload Work Image */
-    const upload = await target.waitForSelector<'input'>(
+    const upload = await this.target.waitForSelector<'input'>(
       'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]' as any,
     );
     if (!upload) throw new Error('Upload input not found');
     await upload.uploadFile(`./${this.config.folder}/.temp/` + path);
     this.progress.update(70);
 
-    await target.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null);
+    await this.target.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null);
     await sleep(750);
 
     /* Check if Upload Succeeded */
-    const finishBtn = await target.waitForSelector('button[title="Complete this assignment"]');
+    const finishBtn = await this.target.waitForSelector('button[title="Complete this assignment"]');
     await sleep(750);
     await finishBtn!.click();
     this.progress.update(90);
   }
 
-  protected async submitForm(target: Page | Frame) {
-    await target.waitForSelector('[title="Complete this assignment"]', { hidden: true });
+  protected async submitForm() {
+    if (!this.target) throw new Error(NO_TARGET);
+    await this.target.waitForSelector('[title="Complete this assignment"]', { hidden: true });
     await sleep(2000);
     this.progress.update(100);
   }
 }
 
 export class ClassicBot extends Bot {
-  private frame: Frame | undefined;
-
   constructor(config?: Config) {
     super(config);
   }
@@ -173,8 +176,8 @@ export class ClassicBot extends Bot {
       const iframeEl = await this.page.waitForSelector(`iframe#PegaGadget${node}Ifr`);
       if (!iframeEl || !iframeEl.frame) throw new Error(`Iframe node ${node} not found`);
 
-      const frame = (this.frame = await iframeEl!.contentFrame());
-      const { error } = await this.selectJob(frame);
+      this.target = await iframeEl.contentFrame();
+      const { error } = await this.selectJob();
       if (error) throw new Error(error);
     } catch (e: any) {
       await this.clearError(e.messsage, () => this.createIframe(node));
@@ -182,18 +185,16 @@ export class ClassicBot extends Bot {
   }
 
   public async handleForm(filePath: string) {
-    if (!this.frame) throw new Error(NO_FRAME);
     try {
-      await this.fillForm(this.frame, filePath);
+      await this.fillForm(filePath);
     } catch (e: any) {
       await this.clearError(e.messsage, () => this.handleForm(filePath));
     }
   }
 
   public async finishing() {
-    if (!this.frame) throw new Error(NO_FRAME);
     try {
-      await this.submitForm(this.frame);
+      await this.submitForm();
     } catch (e: any) {
       await this.clearError(e.messsage, this.finishing);
     }
@@ -209,6 +210,7 @@ export class DirectBot extends Bot {
 
   public async openForm() {
     if (!this.page) throw new Error(NO_BROWSER);
+    else this.target = this.page.mainFrame();
 
     const originUrl = new URL(this.page.url());
     const token = (this.token ||= originUrl.pathname.split('/').find((x) => x.trim().endsWith('*')));
@@ -220,22 +222,20 @@ export class DirectBot extends Bot {
 
     await this.page.goto(formUrl.href);
     await this.page.waitForNetworkIdle();
-    await this.selectJob(this.page);
+    await this.selectJob();
   }
 
   public async handleForm(filePath: string) {
-    if (!this.page) throw new Error(NO_BROWSER);
     try {
-      await this.fillForm(this.page, filePath);
+      await this.fillForm(filePath);
     } catch (e: any) {
       await this.clearError(e.messsage, () => this.handleForm(filePath));
     }
   }
 
   public async finishing() {
-    if (!this.page) throw new Error(NO_BROWSER);
     try {
-      await this.submitForm(this.page);
+      await this.submitForm();
     } catch (e: any) {
       await this.clearError(e.messsage, this.finishing);
     }
@@ -243,5 +243,5 @@ export class DirectBot extends Bot {
 }
 
 const NO_JOB = 'Job not initialized yet, Please choose a job first!';
-const NO_FRAME = 'PegaGadget Iframe not Initialized!';
+const NO_TARGET = 'Target frame node not initialized yet!';
 const NO_BROWSER = 'Browser not initialized yet, Please login first!';

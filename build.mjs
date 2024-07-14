@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import { build } from 'esbuild';
-import { createRequire } from 'module';
 
 build({
   bundle: true,
@@ -8,11 +7,9 @@ build({
   target: 'node16',
   outfile: 'dist/index.js',
   platform: 'node',
-  external: ['@squoosh/lib'],
+  external: ['./vips/index.js'],
   sourcemap: true,
   entryPoints: ['src/index.ts'],
-}).then(async () => {
-  const libs = ['@squoosh/lib', 'wasm-feature-detect', 'web-streams-polyfill'];
-  fs.cp('package.json', 'dist/package.json');
-  await Promise.all(libs.map((lib) => fs.cp(`node_modules/${lib}`, `dist/node_modules/${lib}`, { recursive: true })));
-});
+})
+  .then(() => fs.cp('src/vips', 'dist/vips', { recursive: true }))
+  .then(() => fs.unlink('dist/vips/index.d.ts'));
