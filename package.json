@@ -15,7 +15,7 @@
     "package": "npm run build && pkg --no-bytecode --public -C Brotli ."
   },
   "engines": {
-    "node": "^20.x || ^18.x || ^16.x"
+    "node": "^20.x || ^18.x"
   },
   "devDependencies": {
     "@types/cli-progress": "3.11.5",
