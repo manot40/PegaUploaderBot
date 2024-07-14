@@ -12,7 +12,7 @@
     "package": "npm run build && pkg -C Brotli ."
   },
   "engines": {
-    "node": "^16.x || ^14.x"
+    "node": "^20.x || ^18.x || ^16.x"
   },
   "devDependencies": {
     "@types/cli-progress": "3.11.5",
