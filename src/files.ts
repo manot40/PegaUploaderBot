@@ -4,7 +4,6 @@ import config from './config';
 
 import Vips from './vips/index.js';
 
-let vips: typeof Vips | undefined;
 const folder = config.folder;
 
 class FileHandler {
@@ -57,7 +56,7 @@ class FileHandler {
       const _file = typeof file === 'number' ? this.files[file] : file;
       const fileBuff = await fs.readFile(`${this.dir}/${_file}`);
 
-      vips ??= await Vips();
+      const vips = await Vips();
       const image = vips.Image.newFromBuffer(fileBuff);
       if (image.width > 1920) {
         var result = image.thumbnailImage(image.width / 4).writeToBuffer('.jpg', { Q: 75 });
@@ -69,7 +68,7 @@ class FileHandler {
       const resultPath = `${this.temp}/${fileName}`;
       await fs.writeFile(resultPath, result);
 
-      image.delete();
+      vips.shutdown();
       return { result: fileName };
     } catch (error: any) {
       console.error(error.message);

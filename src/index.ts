@@ -65,15 +65,9 @@ async function main() {
   }
 
   console.log(line);
-  console.log('All Job Done!');
-  process.exit(0);
-}
+  console.info('All Job Done!');
 
-process.on('uncaughtException', handleError);
-process.on('unhandledRejection', handleError);
-async function handleError(error: Error) {
-  console.error(kleur.red('Fatal:'), error?.message || 'Unknown Error');
-  console.info('Press CTRL+C to exit...');
+  console.info('\nPress CTRL+C to exit...');
   await new Promise((r) => process.stdin.once('data', r));
-  process.exit(1);
+  process.exit(0);
 }
