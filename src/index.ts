@@ -1,3 +1,4 @@
+import fs from 'fs';
 import kleur from 'kleur';
 import config from 'config';
 import FileHandler from 'files';
@@ -70,4 +71,10 @@ async function main() {
   console.info('\nPress CTRL+C to exit...');
   await new Promise((r) => process.stdin.once('data', r));
   process.exit(0);
+}
+
+process.on('unhandledRejection', printLog);
+process.on('uncaughtException', printLog);
+function printLog(e: any) {
+  fs.writeFileSync('error.log', e.toString?.() || e.stack, { encoding: 'utf8', flag: 'a' });
 }
