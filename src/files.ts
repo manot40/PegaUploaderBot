@@ -4,28 +4,32 @@ import config from './config';
 
 import Vips from './vips/index.js';
 
-const folder = config.folder;
-
 class FileHandler {
+  public files: string[] = [];
+
   private dir: string | null = null;
+  private vips: typeof Vips | null = null;
   private temp: string;
   private trashDir: string;
   private initialized = false;
 
-  public files: string[] = [];
-
-  constructor() {
+  constructor(public folder = config.folder) {
     this.temp = `./${folder}/.temp`;
     this.trashDir = `./${folder}/trash`;
   }
 
-  private static remExt(file: string) {
+  static remExt(file: string) {
     const regex = /\.[a-z0-9]+$/i;
     return file.replace(regex, '').trim();
   }
 
   async init() {
     if (this.initialized) return this;
+
+    const vips = (this.vips = await Vips());
+    vips.Cache.maxFiles(2);
+    vips.Cache.max(3);
+
     await Promise.allSettled([
       fs.mkdir(this.temp, { recursive: true }),
       fs.mkdir(this.trashDir, { recursive: true }),
@@ -53,22 +57,25 @@ class FileHandler {
   async compress(file: string | number): Promise<Result<string>> {
     try {
       if (!this.dir) throw new Error('Directory not set!');
-      const _file = typeof file === 'number' ? this.files[file] : file;
-      const fileBuff = await fs.readFile(`${this.dir}/${_file}`);
+      if (!this.vips) throw new Error('Vips lib not loaded yet!');
 
-      const vips = await Vips();
-      const image = vips.Image.newFromBuffer(fileBuff);
+      const fileName = typeof file === 'number' ? this.files[file] : file;
+      const fileBuff = await fs.readFile(`${this.dir}/${fileName}`);
+      const image = this.vips.Image.newFromBuffer(fileBuff);
+
+      let result: Uint8Array;
       if (image.width > 1920) {
-        var result = image.thumbnailImage(image.width / 4).writeToBuffer('.jpg', { Q: 75 });
+        const thumb = image.thumbnailImage(image.width / 4);
+        result = thumb.writeToBuffer('.jpg', { Q: 75 });
+        thumb.delete();
       } else {
-        var result = image.writeToBuffer('.jpg', { Q: 60 });
+        result = image.writeToBuffer('.jpg', { Q: 60 });
       }
 
-      const fileName = `${FileHandler.remExt(_file)}.jpg`;
+      const fileName = `${FileHandler.remExt(fileName)}.jpg`;
       const resultPath = `${this.temp}/${fileName}`;
-      await fs.writeFile(resultPath, result);
+      await fs.writeFile(resultPath, result).then(() => image.delete());
 
-      vips.shutdown();
       return { result: fileName };
     } catch (error: any) {
       console.error(error.message);
