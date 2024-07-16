@@ -34,7 +34,7 @@ class FileHandler {
       fs.mkdir(this.temp, { recursive: true }),
       fs.mkdir(this.trashDir, { recursive: true }),
       ...config.jobs.map((job) => {
-        return fs.mkdir(`./${folder}/${job.name}`, { recursive: true });
+        return fs.mkdir(`./${this.folder}/${job.name}`, { recursive: true });
       }),
     ]);
 
@@ -43,7 +43,7 @@ class FileHandler {
   }
 
   async scanDir(dir: string) {
-    this.dir = `./${folder}/${dir}`;
+    this.dir = `./${this.folder}/${dir}`;
     const files = (this.files = await fs.readdir(this.dir));
 
     if (!files.length) {
@@ -61,7 +61,7 @@ class FileHandler {
 
       const fileName = typeof file === 'number' ? this.files[file] : file;
       const fileBuff = await fs.readFile(`${this.dir}/${fileName}`);
-      const image = this.vips.Image.newFromBuffer(fileBuff);
+      const image = this.vips.Image.newFromBuffer(fileBuff, '', { access: this.vips.Access.sequential });
 
       let result: Uint8Array;
       if (image.width > 1920) {
@@ -72,8 +72,8 @@ class FileHandler {
         result = image.writeToBuffer('.jpg', { Q: 60 });
       }
 
-      const fileName = `${FileHandler.remExt(fileName)}.jpg`;
-      const resultPath = `${this.temp}/${fileName}`;
+      const saveName = `${FileHandler.remExt(fileName)}.jpg`;
+      const resultPath = `${this.temp}/${saveName}`;
       await fs.writeFile(resultPath, result).then(() => image.delete());
 
       return { result: fileName };

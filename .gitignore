@@ -5,3 +5,4 @@ node_modules
 log/compress-images/*
 log/puppeteer-bot/*
 images/**/*
+.DS_Store
