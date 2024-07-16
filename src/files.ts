@@ -73,8 +73,8 @@ class FileHandler {
       }
 
       const saveName = `${FileHandler.remExt(fileName)}.jpg`;
-      const resultPath = `${this.temp}/${saveName}`;
-      await fs.writeFile(resultPath, result).then(() => image.delete());
+      await fs.writeFile(`${this.temp}/${saveName}`, result);
+      image.delete();
 
       return { result: fileName };
     } catch (error: any) {
