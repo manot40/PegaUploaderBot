@@ -8,8 +8,6 @@ import { checkLicense, checkNetwork } from 'utils';
 import { confirm, inputLogin, chooseJob } from 'input';
 
 main();
-console.log(kleur.green(config.jobName));
-console.log('\n Ver: 2.2.5 \n');
 
 async function main() {
   await checkNetwork().then(checkLicense);
