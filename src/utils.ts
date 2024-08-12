@@ -1,3 +1,5 @@
+import config from './config';
+
 export async function checkLicense() {
   if (typeof fetch !== 'function') return;
 
@@ -12,4 +14,9 @@ export async function checkLicense() {
   const result = await res.json();
   if (result.record?.active === true) return;
   throw new Error('Bot Expired. Please contact the developer.');
+}
+
+export async function checkNetwork() {
+  const res = await fetch(config.url);
+  if (!res.ok) throw new Error(`Network Error: Cannot connect to ${config.url}`);
 }
