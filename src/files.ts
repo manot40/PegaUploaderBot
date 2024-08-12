@@ -76,7 +76,7 @@ class FileHandler {
       await fs.writeFile(`${this.temp}/${saveName}`, result);
       image.delete();
 
-      return { result: fileName };
+      return { result: saveName };
     } catch (error: any) {
       console.error(error.message);
       return { error };

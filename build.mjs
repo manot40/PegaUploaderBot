@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 build({
   bundle: true,
   minify: true,
-  target: 'node16',
+  target: 'node18',
   outfile: 'dist/index.js',
   platform: 'node',
   external: ['./vips/index.js'],

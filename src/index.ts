@@ -3,8 +3,8 @@ import kleur from 'kleur';
 import config from 'config';
 import FileHandler from 'files';
 
-import { checkLicense } from 'utils';
 import { ClassicBot, DirectBot } from 'bot';
+import { checkLicense, checkNetwork } from 'utils';
 import { confirm, inputLogin, chooseJob } from 'input';
 
 main();
@@ -12,7 +12,7 @@ console.log(kleur.green(config.jobName));
 console.log('\n Ver: 2.2.5 \n');
 
 async function main() {
-  await checkLicense();
+  await checkNetwork().then(checkLicense);
 
   let formNode = 0;
   const line = '-'.repeat(58);
