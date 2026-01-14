@@ -3,7 +3,7 @@ import kleur from 'kleur';
 import config from './config';
 
 export async function checkLicense() {
-  if (typeof fetch !== 'function') return;
+  if (typeof fetch !== 'function' || !process.env.AUTH_URL || !process.env.TOKEN) return;
 
   const res = await fetch(`${process.env.AUTH_URL}/api/collections/users/auth-with-password`, {
     body: JSON.stringify({ identity: 'pega_bot', password: process.env.TOKEN }),

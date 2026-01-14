@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import path from 'path';
 import kleur from 'kleur';
 import config from './config';
 
@@ -10,12 +11,14 @@ class FileHandler {
   private dir: string | null = null;
   private vips: typeof Vips | null = null;
   private temp: string;
+  private workDir: string;
   private trashDir: string;
   private initialized = false;
 
   constructor(public folder = config.folder) {
-    this.temp = `./${folder}/.temp`;
-    this.trashDir = `./${folder}/trash`;
+    this.workDir = path.join(process.cwd(), folder);
+    this.temp = path.join(this.workDir, '.temp');
+    this.trashDir = path.join(this.workDir, 'trash');
   }
 
   static remExt(file: string) {
@@ -34,7 +37,7 @@ class FileHandler {
       fs.mkdir(this.temp, { recursive: true }),
       fs.mkdir(this.trashDir, { recursive: true }),
       ...config.jobs.map((job) => {
-        return fs.mkdir(`./${this.folder}/${job.name}`, { recursive: true });
+        return fs.mkdir(path.join(this.workDir, job.name), { recursive: true });
       }),
     ]);
 
@@ -43,12 +46,14 @@ class FileHandler {
   }
 
   async scanDir(dir: string) {
-    this.dir = `./${this.folder}/${dir}`;
-    const files = (this.files = await fs.readdir(this.dir));
+    const target = path.join(this.workDir, dir);
+    const files = (this.files = await fs.readdir(target));
 
     if (!files.length) {
       console.log(kleur.red('FOLDER KOSONG!'));
       process.exit(1);
+    } else {
+      this.dir = target;
     }
 
     return files;
@@ -60,8 +65,8 @@ class FileHandler {
       if (!this.vips) throw new Error('Vips lib not loaded yet!');
 
       const fileName = typeof file === 'number' ? this.files[file] : file;
-      const fileBuff = await fs.readFile(`${this.dir}/${fileName}`);
-      const image = this.vips.Image.newFromBuffer(fileBuff, '', { access: this.vips.Access.sequential });
+      const filePath = path.join(this.dir, fileName);
+      const image = this.vips.Image.newFromFile(filePath, { access: this.vips.Access.sequential });
 
       let result: Uint8Array;
       if (image.width > 1920) {

@@ -120,15 +120,26 @@ class Bot {
     this.progress.update(50);
 
     /* Upload Work Image */
-    const upload = await this.target.waitForSelector(
-      'input[name="$PpyWorkPage$pFileSupport$ppxResults$l1$ppyLabel"]' as 'input',
-    );
+    await this.target.$("::-p-xpath(//button[contains(., 'Unggah Berkas')])").then((btn) => {
+      if (!btn) throw new Error('Upload trigger not found');
+      return btn.click();
+    });
+
+    const upload = await this.target.waitForSelector('input#files');
     if (!upload) throw new Error('Upload input not found');
-    await sleep(1000);
-    await upload.uploadFile(path.join(process.cwd(), `/${this.config.folder}/.temp/${fileName}`));
+
+    await sleep(1000)
+      .then(() => upload.uploadFile(path.join(process.cwd(), `/${this.config.folder}/.temp/${fileName}`)))
+      .then(() => this.target!.$('button#ModalButtonSubmit'))
+      .then((btn) => {
+        if (!btn) throw new Error('Upload submit button not found');
+        return btn.click();
+      });
+
+    await this.target!.waitForSelector('span#modaldialog_hd_title', { hidden: true }).catch(() => null);
+
     this.progress.update(70);
 
-    await this.target.waitForSelector('div#pega_ui_mask', { hidden: true }).catch(() => null);
     await sleep(1000);
   }
 
@@ -158,7 +169,7 @@ export class ClassicBot extends Bot {
       await this.page.mouse.click(32, 60);
       await sleep(500);
 
-      const menuItems = await this.page.$x("//a[span[contains(., 'NON BAS')]]");
+      const menuItems = await this.page.$$("::-p-xpath(//a[span[contains(., 'NON BAS')]])");
       for (const item of menuItems as El<HTMLAnchorElement>[])
         if (!(await item.isHidden())) {
           await item.click();
