@@ -1,5 +1,8 @@
 import fs from 'fs/promises';
+import dotenv from 'dotenv';
 import { build } from 'esbuild';
+
+dotenv.config();
 
 build({
   bundle: true,
@@ -11,8 +14,8 @@ build({
   sourcemap: true,
   entryPoints: ['src/index.ts'],
   define: {
-    'process.env.TOKEN': `"${process.env.TOKEN}"`,
-    'process.env.AUTH_URL': `"${process.env.AUTH_URL}"`,
+    'process.env.TOKEN': process.env.TOKEN ? `"${process.env.TOKEN}"` : 'false',
+    'process.env.AUTH_URL': process.env.AUTH_URL ? `"${process.env.AUTH_URL}"` : 'false',
   },
 })
   .then(() => fs.cp('src/vips', 'dist/vips', { recursive: true }))
