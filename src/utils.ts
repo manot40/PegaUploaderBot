@@ -12,12 +12,14 @@ export async function checkLicense() {
   });
 
   const result = await res.json().catch(() => null);
+  const version = result?.record.additional?.version || result?.record.additional || 'unknown version';
+
   console.log(kleur.green(result?.record.name || config.jobName));
-  console.log(`\n Ver: ${result?.record.additional || 'unknown version'} \n`);
+  console.log(`\n Ver: ${version} \n`);
 
   if (!result) return;
-
   if (result.record.active === true) return;
+
   throw new Error('Bot Expired. Please contact the developer.');
 }
 

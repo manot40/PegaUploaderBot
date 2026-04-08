@@ -11,6 +11,8 @@ import Puppeteer from 'puppeteer-core';
 const format = `Uploading: ${kleur.gray('{bar}')} {percentage}%`;
 const sleep = (timeout = 1000) => new Promise((r) => setTimeout(r, timeout));
 
+const SUBMIT_UPLOAD = 'button#ModalButtonSubmit';
+
 class Bot {
   protected page: Page | undefined;
   protected target: Frame | undefined;
@@ -70,15 +72,15 @@ class Bot {
       await sleep(1000);
       await page.click('#txtPassword');
       await page.keyboard.type(store.password);
-      await page.click('#sub');
-      await sleep(1500);
+      await page.click('#credentials > button');
+      await sleep(6000);
       try {
         await page.waitForSelector('#errorDiv', { timeout: 500 });
         console.log(kleur.red('Incorrect Password/Username'));
         console.log('Please Retry');
         return;
       } catch {
-        await page.waitForSelector('li[title="Pengajuan"]');
+        await page.waitForSelector('div[data-tour-id="cm-primary-navigation"]');
         await page.waitForNetworkIdle();
       }
     } catch (e: any) {
@@ -125,18 +127,19 @@ class Bot {
       return btn.click();
     });
 
-    const upload = await this.target.waitForSelector('input#files');
+    const upload = await this.target.waitForSelector('input[type="file"]');
     if (!upload) throw new Error('Upload input not found');
 
     await sleep(1000)
       .then(() => upload.uploadFile(path.join(process.cwd(), `/${this.config.folder}/.temp/${fileName}`)))
-      .then(() => this.target!.$('button#ModalButtonSubmit'))
+      .then(() => this.page!.waitForNetworkIdle())
+      .then(() => this.target!.$(SUBMIT_UPLOAD))
       .then((btn) => {
         if (!btn) throw new Error('Upload submit button not found');
         return btn.click();
       });
 
-    await this.target!.waitForSelector('span#modaldialog_hd_title', { hidden: true }).catch(() => null);
+    await this.target!.waitForSelector(SUBMIT_UPLOAD, { hidden: true }).catch(() => null);
 
     this.progress.update(70);
 
@@ -155,6 +158,11 @@ class Bot {
     await sleep(2000);
     this.progress.update(100);
   }
+
+  async close() {
+    if (!this.browser) return;
+    await this.browser.close();
+  }
 }
 
 export class ClassicBot extends Bot {
@@ -169,7 +177,7 @@ export class ClassicBot extends Bot {
       await this.page.mouse.click(32, 60);
       await sleep(500);
 
-      const menuItems = await this.page.$$("::-p-xpath(//a[span[contains(., 'NON BAS')]])");
+      const menuItems = await this.page.$$("::-p-xpath(//a[span[contains(., 'Input Aktivitas')]])");
       for (const item of menuItems as El<HTMLAnchorElement>[])
         if (!(await item.isHidden())) {
           await item.click();

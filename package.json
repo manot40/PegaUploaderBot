@@ -15,16 +15,15 @@
     "package": "npm run build && pkg --no-bytecode --public -C Brotli ."
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "devDependencies": {
     "@types/cli-progress": "^3.11.6",
-    "@types/colors": "1.2.1",
     "@types/inquirer": "8.2.10",
-    "@yao-pkg/pkg": "^6.11.0",
+    "@yao-pkg/pkg": "^6.14.2",
     "cli-progress": "3.12.0",
-    "dotenv": "^17.2.3",
-    "esbuild": "^0.27.2",
+    "dotenv": "^17.4.1",
+    "esbuild": "^0.28.0",
     "inquirer": "^8.2.7",
     "kleur": "4.1.5",
     "nanoevents": "^9.1.0",
@@ -43,7 +42,7 @@
       "dist/vips"
     ],
     "targets": [
-      "node18-win"
+      "node24-win"
     ]
   }
 }

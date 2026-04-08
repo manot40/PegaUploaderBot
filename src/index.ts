@@ -66,8 +66,9 @@ async function main() {
   console.log(line);
   console.info('All Job Done!');
 
-  console.info('\nPress CTRL+C to exit...');
+  await bot.close().then(() => console.info('\nPress CTRL+C to exit...'));
   await new Promise((r) => process.stdin.once('data', r));
+
   process.exit(0);
 }
 
