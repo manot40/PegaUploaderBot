@@ -1,4 +1,7 @@
 import { createDPoPClient } from './dpop';
+import { ApiError, type ApiErrorOptions } from './error';
+
+export { ApiError, type ApiErrorOptions };
 
 export interface UserContextOption {
   pyCompany: string;
@@ -99,7 +102,8 @@ export class MitraApiClient {
     const dpopClient = await createDPoPClient();
 
     // 1. Create session
-    const createSessRes = await this.fetchFn(`${this.baseUrl}/api/uniport/create-session`, {
+    const createSessEndpoint = '/api/uniport/create-session';
+    const createSessRes = await this.fetchFn(`${this.baseUrl}${createSessEndpoint}`, {
       method: 'POST',
       headers: {
         accept: '*/*',
@@ -107,26 +111,42 @@ export class MitraApiClient {
       },
       body: null,
     });
+
     if (!createSessRes.ok) {
-      throw new Error(`Gagal membuat sesi Uniport: HTTP ${createSessRes.status}`);
+      const payload = await createSessRes.text().catch(() => '');
+      const message = `Gagal membuat sesi Uniport: HTTP ${createSessRes.status}`;
+      throw new ApiError(message, {
+        status: createSessRes.status,
+        payload,
+        endpoint: createSessEndpoint,
+      });
     }
     const sessData = (await createSessRes.json()) as { sessionId: string };
     const sessionId = sessData.sessionId;
 
     // 2. Check session
+    const checkSessEndpoint = '/api/uniport/check-session';
     const checkSessRes = await this.fetchFn(
-      `${this.baseUrl}/api/uniport/check-session?sessionId=${encodeURIComponent(sessionId)}`,
+      `${this.baseUrl}${checkSessEndpoint}?sessionId=${encodeURIComponent(sessionId)}`,
       {
         method: 'GET',
         headers: { accept: '*/*' },
       },
     );
+
     if (!checkSessRes.ok) {
-      throw new Error(`Gagal memeriksa status sesi Uniport: HTTP ${checkSessRes.status}`);
+      const payload = await checkSessRes.text().catch(() => '');
+      const message = `Gagal memeriksa status sesi Uniport: HTTP ${checkSessRes.status}`;
+      throw new ApiError(message, {
+        status: checkSessRes.status,
+        payload,
+        endpoint: checkSessEndpoint,
+      });
     }
 
     // 3. Login password
-    const loginRes = await this.fetchFn(`${this.baseUrl}/api/uniport/login-password`, {
+    const loginEndpoint = '/api/uniport/login-password';
+    const loginRes = await this.fetchFn(`${this.baseUrl}${loginEndpoint}`, {
       method: 'POST',
       headers: {
         accept: '*/*',
@@ -140,19 +160,28 @@ export class MitraApiClient {
     });
 
     if (!loginRes.ok) {
-      const errText = await loginRes.text().catch(() => '');
-      throw new Error(
-        `Kredensial login tidak valid (${loginRes.status}): ${errText || 'Username atau password salah'}`,
-      );
+      const payload = await loginRes.text().catch(() => '');
+      const message = `Kredensial login tidak valid (${loginRes.status}): Username atau password salah`;
+      throw new ApiError(message, {
+        status: loginRes.status,
+        payload,
+        endpoint: loginEndpoint,
+      });
     }
 
     const loginData = (await loginRes.json()) as { status: string };
     if (loginData.status !== 'verified') {
-      throw new Error(`Autentikasi gagal: status sesi '${loginData.status}'`);
+      const message = `Autentikasi gagal: status sesi '${loginData.status}'`;
+      throw new ApiError(message, {
+        status: 200,
+        payload: JSON.stringify(loginData),
+        endpoint: loginEndpoint,
+      });
     }
 
     // 4. Consume session with DPoP
-    const consumeHtu = `${this.baseUrl}/api/uniport/consume-session`;
+    const consumeEndpoint = '/api/uniport/consume-session';
+    const consumeHtu = `${this.baseUrl}${consumeEndpoint}`;
     const consumeProof = await dpopClient.generateProof({
       htm: 'POST',
       htu: consumeHtu,
@@ -169,14 +198,21 @@ export class MitraApiClient {
     });
 
     if (!consumeRes.ok) {
-      throw new Error(`Gagal mengonsumsi sesi: HTTP ${consumeRes.status}`);
+      const payload = await consumeRes.text().catch(() => '');
+      const message = `Gagal mengonsumsi sesi: HTTP ${consumeRes.status}`;
+      throw new ApiError(message, {
+        status: consumeRes.status,
+        payload,
+        endpoint: consumeEndpoint,
+      });
     }
     this.updateCookies(consumeRes);
     const consumeData = (await consumeRes.json()) as { identityToken: string };
     const handoffToken = consumeData.identityToken;
 
     // 5. Handoff token with DPoP + ath
-    const handoffHtu = `${this.baseUrl}/api/uniport/handoff-token`;
+    const endpoint = '/api/uniport/handoff-token';
+    const handoffHtu = `${this.baseUrl}${endpoint}`;
     const handoffProof = await dpopClient.generateProof({
       htm: 'POST',
       htu: handoffHtu,
@@ -191,15 +227,13 @@ export class MitraApiClient {
         authorization: `Bearer ${handoffToken}`,
         dpop: handoffProof,
       },
-      body: JSON.stringify({
-        tenantId: 'MITRA',
-        monolithKey: 'hcqxpayrollq',
-        as: 'token',
-      }),
+      body: JSON.stringify({ as: 'token', tenantId: 'MITRA', monolithKey: 'hcqxpayrollq' }),
     });
 
     if (!handoffRes.ok) {
-      throw new Error(`Gagal menukarkan token handoff Mitra: HTTP ${handoffRes.status}`);
+      const payload = await handoffRes.text().catch(() => '');
+      const message = `Gagal menukarkan token handoff Mitra: HTTP ${handoffRes.status}`;
+      throw new ApiError(message, { status: handoffRes.status, payload, endpoint });
     }
     this.updateCookies(handoffRes);
     const handoffData = (await handoffRes.json()) as { identityToken: string };
@@ -208,8 +242,9 @@ export class MitraApiClient {
   }
 
   async getUserContext(): Promise<UserContextOption[]> {
+    const endpoint = '/api/mitra/v1/aktivitas-mitra/mulai/context';
     const res = await this.withRetry(() =>
-      this.request('/api/mitra/v1/aktivitas-mitra/mulai/context', {
+      this.request(endpoint, {
         method: 'GET',
         headers: {
           accept: '*/*',
@@ -221,7 +256,9 @@ export class MitraApiClient {
     );
 
     if (!res.ok) {
-      throw new Error(`Gagal mengambil konteks pengguna: HTTP ${res.status}`);
+      const payload = await res.text().catch(() => '');
+      const message = `Gagal mengambil konteks pengguna: HTTP ${res.status}`;
+      throw new ApiError(message, { status: res.status, payload, endpoint });
     }
 
     const data = (await res.json()) as { options: UserContextOption[] };
@@ -236,8 +273,9 @@ export class MitraApiClient {
       sectionId: String(ctx.sectionId),
     });
 
+    const endpoint = `/api/mitra/v1/aktivitas-mitra/mulai/activities?${params.toString()}`;
     const res = await this.withRetry(() =>
-      this.request(`/api/mitra/v1/aktivitas-mitra/mulai/activities?${params.toString()}`, {
+      this.request(endpoint, {
         method: 'GET',
         headers: {
           accept: '*/*',
@@ -248,7 +286,9 @@ export class MitraApiClient {
     );
 
     if (!res.ok) {
-      throw new Error(`Gagal mengambil daftar aktivitas: HTTP ${res.status}`);
+      const payload = await res.text().catch(() => '');
+      const message = `Gagal mengambil daftar aktivitas: HTTP ${res.status}`;
+      throw new ApiError(message, { status: res.status, payload, endpoint });
     }
 
     const data = (await res.json()) as { items: ActivityItem[] };
@@ -256,8 +296,9 @@ export class MitraApiClient {
   }
 
   async startActivity(ctx: UserContextOption, activityId: number): Promise<string> {
+    const endpoint = '/api/mitra/v1/aktivitas-mitra/mulai';
     const res = await this.withRetry(() =>
-      this.request('/api/mitra/v1/aktivitas-mitra/mulai', {
+      this.request(endpoint, {
         method: 'POST',
         headers: {
           accept: '*/*',
@@ -266,15 +307,14 @@ export class MitraApiClient {
           'x-active-tenant': 'MITRA',
           'x-page': '/mitra/input-aktivitas-mitra',
         },
-        body: JSON.stringify({
-          ...ctx,
-          activityId,
-        }),
+        body: JSON.stringify({ ...ctx, activityId }),
       }),
     );
 
     if (!res.ok) {
-      throw new Error(`Gagal memulai aktivitas: HTTP ${res.status}`);
+      const payload = await res.text().catch(() => '');
+      const message = `Gagal memulai aktivitas: HTTP ${res.status}`;
+      throw new ApiError(message, { status: res.status, payload, endpoint });
     }
 
     const data = (await res.json()) as { caseNumber: string };
@@ -282,13 +322,14 @@ export class MitraApiClient {
   }
 
   async finishActivity(input: FinishActivityInput): Promise<{ id: string; caseId: string }> {
+    const endpoint = '/api/mitra/v1/aktivitas-mitra/selesai';
     const res = await this.withRetry(() => {
       const formData = new FormData();
       formData.set('caseNumber', input.caseNumber);
       formData.set('keterangan', input.keterangan);
       formData.set('file', input.file, input.fileName);
 
-      return this.request('/api/mitra/v1/aktivitas-mitra/selesai', {
+      return this.request(endpoint, {
         method: 'POST',
         headers: {
           'x-active-tenant': 'MITRA',
@@ -299,7 +340,9 @@ export class MitraApiClient {
     });
 
     if (!res.ok) {
-      throw new Error(`Gagal menyelesaikan aktivitas (${input.caseNumber}): HTTP ${res.status}`);
+      const payload = await res.text().catch(() => '');
+      const message = `Gagal menyelesaikan aktivitas (${input.caseNumber}): HTTP ${res.status}`;
+      throw new ApiError(message, { status: res.status, payload, endpoint });
     }
 
     const data = (await res.json()) as { id: string; caseId: string };
@@ -336,7 +379,13 @@ export class MitraApiClient {
       try {
         const result = await fn();
         if (result instanceof Response && result.status >= 500) {
-          throw new Error(`HTTP ${result.status}`);
+          const payload = await result.text().catch(() => '');
+          const message = `HTTP ${result.status}`;
+          throw new ApiError(message, {
+            status: result.status,
+            payload,
+            endpoint: result.url,
+          });
         }
         return result;
       } catch (err) {

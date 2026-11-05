@@ -1,4 +1,5 @@
 import { color } from './color';
+import { ApiError } from './error';
 
 export interface LicenseRecord {
   name?: string;
@@ -79,7 +80,12 @@ export async function checkLicense(
   });
 
   if (!response.ok) {
-    throw new Error('Gagal verifikasi lisensi: Kredensial lisensi tidak valid.');
+    const payload = await response.text().catch(() => '');
+    throw new ApiError('Gagal verifikasi lisensi: Kredensial lisensi tidak valid.', {
+      status: response.status,
+      payload,
+      endpoint,
+    });
   }
 
   const data = (await response.json()) as LicenseAuthResponse;

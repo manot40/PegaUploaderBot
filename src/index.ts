@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { color } from './color';
 import { MitraApiClient, type UserContextOption } from './api';
+import { extractApiError, formatErrorMessage, isVerbose } from './error';
 import {
   compressImage,
   ensureDirectories,
@@ -14,7 +15,15 @@ import {
 import { checkLicense, checkNetwork } from './license';
 
 function logError(error: unknown) {
-  const message = error instanceof Error ? error.stack || error.message : String(error);
+  const apiError = extractApiError(error);
+  let message: string;
+  if (apiError && apiError.payload) {
+    message = `${apiError.stack || apiError.message}\nPayload API (${apiError.endpoint || 'unknown'} - HTTP ${apiError.status}): ${apiError.payload}`;
+  } else if (error instanceof Error) {
+    message = error.stack || error.message;
+  } else {
+    message = String(error);
+  }
   const logLine = `[${new Date().toISOString()}] ${message}\n`;
   fs.appendFile('error.log', logLine, 'utf8').catch(() => {});
 }
@@ -23,7 +32,7 @@ process.on('unhandledRejection', logError);
 process.on('uncaughtException', logError);
 
 export async function main() {
-  p.intro(color.cyan('Bot Pega Mitra v3'));
+  p.intro(`${color.cyan('Bot Mitra')}${isVerbose() ? color.yellow(' [Verbose]') : ''}`);
 
   const s = p.spinner();
 
@@ -34,7 +43,8 @@ export async function main() {
     s.stop('Koneksi jaringan terhubung.');
   } catch (err: unknown) {
     s.stop(color.red('Gagal terhubung ke jaringan.'));
-    p.cancel(err instanceof Error ? err.message : String(err));
+    logError(err);
+    p.cancel(formatErrorMessage(err));
     process.exit(1);
   }
 
@@ -45,7 +55,8 @@ export async function main() {
     else s.stop(`Versi Bot: ${lic.version} | Status: ${color.green(lic.name || 'Aktif')}`);
   } catch (err: unknown) {
     s.stop(color.red('Gagal verifikasi lisensi.'));
-    p.cancel(err instanceof Error ? err.message : String(err));
+    logError(err);
+    p.cancel(formatErrorMessage(err));
     process.exit(2);
   }
 
@@ -62,8 +73,12 @@ export async function main() {
       await client.login(envUser, envPass);
       s.stop(`Login otomatis berhasil sebagai ${color.green(envUser)}.`);
       authenticated = true;
-    } catch {
+    } catch (err: unknown) {
+      logError(err);
       s.stop(color.yellow('Kredensial dari .env tidak valid. Beralih ke input manual.'));
+      if (isVerbose()) {
+        p.log.error(formatErrorMessage(err));
+      }
     }
   }
 
@@ -97,9 +112,9 @@ export async function main() {
       s.stop(color.green('Login berhasil!'));
       authenticated = true;
     } catch (err: unknown) {
+      logError(err);
       s.stop(color.red('Login gagal.'));
-      const msg = err instanceof Error ? err.message : String(err);
-      p.log.error(msg);
+      p.log.error(formatErrorMessage(err));
       p.log.warn('Silakan coba masukkan email dan password kembali.');
     }
   }
@@ -112,7 +127,8 @@ export async function main() {
     s.stop('Konteks pengguna berhasil diambil.');
   } catch (err: unknown) {
     s.stop(color.red('Gagal mengambil konteks pengguna.'));
-    p.cancel(err instanceof Error ? err.message : String(err));
+    logError(err);
+    p.cancel(formatErrorMessage(err));
     process.exit(1);
   }
 
@@ -145,7 +161,8 @@ export async function main() {
     s.stop(`Ditemukan ${activities.length} aktivitas.`);
   } catch (err: unknown) {
     s.stop(color.red('Gagal mengambil daftar aktivitas.'));
-    p.cancel(err instanceof Error ? err.message : String(err));
+    logError(err);
+    p.cancel(formatErrorMessage(err));
     process.exit(1);
   }
 
@@ -214,7 +231,7 @@ export async function main() {
       options: [
         {
           value: 'activity',
-          label: `Gunakan nama aktivitas ("${chosenAct.activityName}") [Default]`,
+          label: `Gunakan nama aktivitas ("${chosenAct.activityName}")`,
         },
         {
           value: 'filename',
@@ -260,18 +277,24 @@ export async function main() {
         await moveToTrash(filePath);
         successCount++;
         remaining--;
-        s.stop(`${color.green(`${fileIndexStr} Berhasil diunggah:`)} ${fileName} (Sisa: ${remaining})`);
+        s.stop(`${color.green(`${fileIndexStr} Berhasil diunggah:`)} ${fileName}`);
       } catch (err: unknown) {
         failCount++;
+        logError(err);
         const errMsg = err instanceof Error ? err.message : String(err);
-        logError(new Error(`Gagal mengunggah ${fileName} (${chosenAct.activityName}): ${errMsg}`));
         s.stop(`${color.red(`${fileIndexStr} Gagal diunggah:`)} ${fileName} - ${errMsg}`);
+        if (isVerbose()) {
+          const apiErr = extractApiError(err);
+          if (apiErr && apiErr.payload) {
+            p.log.error(`${color.yellow('[Detail API]:')} ${apiErr.payload}`);
+          }
+        }
         p.log.warn(`Berkas '${fileName}' tetap tersimpan untuk diunggah ulang nanti.`);
       }
     }
 
     p.log.message(
-      `${color.cyan('Hasil batch:')} ${color.green(`${successCount} sukses`)}, ${color.red(`${failCount} gagal`)}.`,
+      `${color.cyan('Laporan Antrian:')} ${color.green(`${successCount} sukses`)}, ${color.red(`${failCount} gagal`)}.`,
     );
 
     // Multi-batch prompt
@@ -285,13 +308,13 @@ export async function main() {
     }
   }
 
-  p.outro(color.green('Selesai! Terima kasih telah menggunakan Bot Pega Mitra.'));
+  p.outro(color.green('Semua antrian pekerjaan selesai!'));
 }
 
 if (import.meta.main) {
   main().catch((err) => {
     logError(err);
-    p.cancel(err instanceof Error ? err.message : String(err));
+    p.cancel(formatErrorMessage(err));
     process.exit(1);
   });
 }

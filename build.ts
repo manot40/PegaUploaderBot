@@ -24,6 +24,7 @@ async function build() {
     'build',
     'src/index.ts',
     '--compile',
+    '--bytecode',
     '--target=bun-windows-x64',
     '--outfile=dist/bot-pega-mitra.exe',
     '--minify',
@@ -33,11 +34,7 @@ async function build() {
     `process.env.LICENSE_TOKEN=${token}`,
   ];
 
-  if (process.platform === 'win32') {
-    args.push('--windows-icon=icon.ico');
-  } else {
-    console.log(color.yellow('Info: Cross-compiling dari non-Windows, flag --windows-icon dilewati.'));
-  }
+  if (process.platform === 'win32') args.push('--windows-icon=icon.ico');
 
   const proc = Bun.spawn(args, {
     stdout: 'inherit',
@@ -49,8 +46,6 @@ async function build() {
     console.error(color.red(`Kompilasi gagal dengan exit code ${exitCode}`));
     process.exit(exitCode);
   }
-
-  console.log(color.green('Kompilasi selesai! Executable tersedia di dist/bot-pega-mitra.exe'));
 }
 
 build().catch((err) => {

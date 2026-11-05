@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { MitraApiClient } from '../src/api';
+import { ApiError, MitraApiClient } from '../src/api';
 
 describe('MitraApiClient', () => {
   it('should successfully authenticate through Uniport with DPoP', async () => {
@@ -46,7 +46,7 @@ describe('MitraApiClient', () => {
     expect(client.identityToken).toBe('mitra-jwt-xyz789');
   });
 
-  it('should reject invalid login credentials with descriptive error', async () => {
+  it('should reject invalid login credentials with descriptive error and attach payload', async () => {
     const mockFetch = async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/uniport/create-session')) {
@@ -65,7 +65,19 @@ describe('MitraApiClient', () => {
       fetchFn: mockFetch as unknown as typeof fetch,
     });
 
-    expect(client.login('user', 'wrong-pass')).rejects.toThrow('Kredensial login tidak valid');
+    let caughtError: unknown;
+    try {
+      await client.login('user', 'wrong-pass');
+    } catch (err) {
+      caughtError = err;
+    }
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    const apiErr = caughtError as ApiError;
+    expect(apiErr.status).toBe(401);
+    expect(apiErr.payload).toBe('Invalid username or password');
+    expect(apiErr.message).toBe('Kredensial login tidak valid (401): Username atau password salah');
+    expect(apiErr.message).not.toContain('Invalid username or password');
   });
 
   it('should fetch user context and activities', async () => {
@@ -203,5 +215,41 @@ describe('MitraApiClient', () => {
     expect(ctx).toEqual([]);
     expect(loginCalls).toBe(2); // Re-authenticated
     expect(requestCalls).toBe(2); // Retried request
+  });
+
+  it('should throw ApiError with payload when finishActivity fails', async () => {
+    const mockFetch = async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/mitra/v1/aktivitas-mitra/selesai')) {
+        return new Response('{"error": "CASE_CLOSED", "message": "Case has already been submitted"}', {
+          status: 400,
+        });
+      }
+      return new Response('Not found', { status: 404 });
+    };
+
+    const client = new MitraApiClient({
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+    client.identityToken = 'valid-token';
+
+    let caught: unknown;
+    try {
+      await client.finishActivity({
+        caseNumber: 'CASE-101',
+        keterangan: 'Kunjungan',
+        file: new Blob(['data']),
+        fileName: 'test.jpg',
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const apiErr = caught as ApiError;
+    expect(apiErr.status).toBe(400);
+    expect(apiErr.payload).toContain('CASE_CLOSED');
+    expect(apiErr.message).toBe('Gagal menyelesaikan aktivitas (CASE-101): HTTP 400');
+    expect(apiErr.message).not.toContain('CASE_CLOSED');
   });
 });

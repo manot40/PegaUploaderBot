@@ -6,12 +6,18 @@
   "version": "3.0.0",
   "license": "GPL-3.0",
   "description": "Bot Uploader Aktivitas Mitra PayrollQ",
+  "devEngines": {
+    "runtime": {
+      "name": "bun",
+      "version": ">=1.4.4",
+      "onFail": "warn"
+    }
+  },
   "scripts": {
     "dev": "bun run src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test",
-    "build": "bun run build.ts",
-    "package": "bun run build.ts"
+    "build": "bun run build.ts"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1"

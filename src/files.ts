@@ -62,19 +62,11 @@ export async function compressImage(filePath: string): Promise<CompressedImageRe
   if (width > 1920) {
     const targetWidth = Math.round(width / 4);
     const blob = await img.resize(targetWidth).jpeg({ quality: 75 }).blob();
-    return {
-      blob,
-      originalWidth: width,
-      compressedWidth: targetWidth,
-    };
+    return { blob, originalWidth: width, compressedWidth: targetWidth };
   }
 
   const blob = await img.jpeg({ quality: 60 }).blob();
-  return {
-    blob,
-    originalWidth: width,
-    compressedWidth: width,
-  };
+  return { blob, originalWidth: width, compressedWidth: width };
 }
 
 export async function moveToTrash(filePath: string, trashDir = 'images/trash'): Promise<string> {
