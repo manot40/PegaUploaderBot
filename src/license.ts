@@ -60,7 +60,7 @@ export async function checkNetwork(
 
 export async function checkLicense(
   options: { url?: string; token?: string; fetchFn?: typeof fetch } = {},
-): Promise<{ active: boolean; name?: string; version?: string } | void> {
+): Promise<{ active: boolean; name?: string; version?: string; token?: string } | void> {
   const authUrl = options.url ?? process.env.LICENSE_URL;
   const token = options.token ?? process.env.LICENSE_TOKEN;
   const fetchFn = options.fetchFn ?? fetch;
@@ -100,8 +100,30 @@ export async function checkLicense(
       active: true,
       name: record.name,
       version: String(version),
+      token: data.token,
     };
   }
 
   throw new Error('Bot Kedaluwarsa. Silakan hubungi pengembang.');
+}
+
+export async function sendTelemetry(
+  payload: { user: string; job_name: string; job_count: number },
+  options: { url?: string; token?: string; fetchFn?: typeof fetch } = {},
+): Promise<void> {
+  const authUrl = options.url ?? process.env.LICENSE_URL;
+  const token = options.token;
+  const fetchFn = options.fetchFn ?? fetch;
+
+  if (!authUrl || authUrl === 'false' || !token) return;
+
+  const endpoint = `${authUrl.replace(/\/+$/, '')}/api/collections/mitrabot_tracing/records`;
+  await fetchFn(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
 }

@@ -31,12 +31,7 @@ export async function createDPoPClient(): Promise<DPoPClient> {
   const keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
 
   const exported = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-  const jwk = {
-    kty: exported.kty!,
-    crv: exported.crv!,
-    x: exported.x!,
-    y: exported.y!,
-  };
+  const jwk = { kty: exported.kty!, crv: exported.crv!, x: exported.x!, y: exported.y! };
 
   return {
     keyPair,

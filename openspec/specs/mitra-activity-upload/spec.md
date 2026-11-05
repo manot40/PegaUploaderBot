@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Discovers the authenticated user's organizational context and available Mitra activities, synchronizes local per-activity image directories, compresses images in memory, and submits activity cases sequentially with retry and file cleanup.
+Discovers the authenticated user's organizational context and available Mitra activities, synchronizes local per-activity image directories, compresses images in memory, submits activity cases sequentially with retry and file cleanup, and dispatches batch completion telemetry when a valid license is present.
 
 ## Requirements
 
@@ -66,3 +66,22 @@ The system SHALL upload images sequentially (one file at a time) by calling `POS
 
 - **WHEN** a file fails compression or fails `/mulai` or `/selesai` after all 3 retry attempts
 - **THEN** the system appends the error details to `error.log`, leaves the original file in `images/<sanitizedActivityName>/` for future retry, and continues processing the next file in the batch
+
+### Requirement: Batch completion telemetry
+
+When an authenticated session holds a valid license, the system SHALL send a POST telemetry record to `${LICENSE_URL}/api/collections/mitrabot_tracing/records` upon completing each batch, containing the user email/username, job name, count of successfully uploaded jobs (`job_count`), and the Bearer token from the license authentication response. Telemetry dispatch failures SHALL be logged and SHALL NOT interrupt the user flow or abort execution.
+
+#### Scenario: Telemetry sent on batch completion with valid license
+
+- **WHEN** a batch finishes executing uploads and a valid license token exists
+- **THEN** the system issues a POST request to `${LICENSE_URL}/api/collections/mitrabot_tracing/records` with header `Authorization: Bearer <token>` and JSON body `{ user: "<user_email>", job_name: "<activity_name>", job_count: <successCount> }`
+
+#### Scenario: Telemetry skipped when license is inactive or unconfigured
+
+- **WHEN** license checking is skipped (missing or `"false"` credentials) or the license is not active
+- **THEN** no telemetry request is dispatched upon batch completion
+
+#### Scenario: Telemetry dispatch failure is non-fatal
+
+- **WHEN** sending telemetry encounters a network error or rejection
+- **THEN** the system logs the error to `error.log` without displaying an interrupting fatal error or aborting the multi-batch loop

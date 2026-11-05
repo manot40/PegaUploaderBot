@@ -12,7 +12,7 @@ import {
   scanActivityDirectory,
   stripExtension,
 } from './files';
-import { checkLicense, checkNetwork } from './license';
+import { checkLicense, checkNetwork, sendTelemetry } from './license';
 
 function logError(error: unknown) {
   const apiError = extractApiError(error);
@@ -49,8 +49,9 @@ export async function main() {
   }
 
   s.start('Memverifikasi versi bot...');
+  let lic: Awaited<ReturnType<typeof checkLicense>>;
   try {
-    const lic = await checkLicense();
+    lic = await checkLicense();
     if (!lic) s.stop(color.yellow('Versi bot tidak diketahui.'));
     else s.stop(`Versi Bot: ${lic.version} | Status: ${color.green(lic.name || 'Aktif')}`);
   } catch (err: unknown) {
@@ -63,6 +64,7 @@ export async function main() {
   // 2. Client & Authentication
   const client = new MitraApiClient();
   let authenticated = false;
+  let currentUser = '';
 
   const envUser = process.env.BOT_USERNAME?.trim();
   const envPass = process.env.BOT_PASSWORD?.trim();
@@ -73,6 +75,7 @@ export async function main() {
       await client.login(envUser, envPass);
       s.stop(`Login otomatis berhasil sebagai ${color.green(envUser)}.`);
       authenticated = true;
+      currentUser = envUser;
     } catch (err: unknown) {
       logError(err);
       s.stop(color.yellow('Kredensial dari .env tidak valid. Beralih ke input manual.'));
@@ -111,6 +114,7 @@ export async function main() {
       await client.login(username.trim(), password);
       s.stop(color.green('Login berhasil!'));
       authenticated = true;
+      currentUser = username.trim();
     } catch (err: unknown) {
       logError(err);
       s.stop(color.red('Login gagal.'));
@@ -296,6 +300,13 @@ export async function main() {
     p.log.message(
       `${color.cyan('Laporan Antrian:')} ${color.green(`${successCount} sukses`)}, ${color.red(`${failCount} gagal`)}.`,
     );
+
+    if (lic?.active && lic.token) {
+      await sendTelemetry(
+        { user: currentUser, job_name: chosenAct.activityName, job_count: successCount },
+        { token: lic.token },
+      ).catch(logError);
+    }
 
     // Multi-batch prompt
     const loopChoice = await p.confirm({
