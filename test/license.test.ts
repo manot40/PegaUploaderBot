@@ -5,6 +5,7 @@ import {
   getCachedSession,
   getTokenExpiry,
   isSessionValid,
+  LicenseManager,
   saveCachedSession,
   sendTelemetry,
 } from '../src/license';
@@ -61,10 +62,11 @@ describe('License & Network Verification', () => {
 
     expect(capturedUrl).toBe('https://auth.example.com/api/collections/mitrabot_tracing/records');
     expect(capturedInit?.method).toBe('POST');
-    expect(capturedInit?.headers).toEqual({
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer jwt-bearer-token',
-    });
+    const headers = new Headers(capturedInit?.headers);
+    expect(headers.get('content-type')).toBe('application/json');
+    expect(headers.get('authorization')).toBe('Bearer jwt-bearer-token');
+    expect(headers.get('user-agent')).toContain('Mozilla/5.0');
+    expect(headers.get('sec-ch-ua')).toContain('Google Chrome');
     expect(JSON.parse(capturedInit?.body as string)).toEqual({
       user: 'user@example.com',
       job_name: 'Input Data',
@@ -281,5 +283,73 @@ describe('License & Network Verification', () => {
     expect(postMethod).toBe('POST');
     expect(postBody.email).toBe('newuser@example.com');
     expect(postBody.cookies).toEqual({ auth: 'val' });
+  });
+
+  it('should manage license verification, session record ID caching, and telemetry via LicenseManager', async () => {
+    const requests: { url: string; method: string; body?: any }[] = [];
+    const expiredIso = new Date(Date.now() - 60_000).toISOString();
+
+    const mockFetch = async (url: string, init?: RequestInit) => {
+      const method = init?.method || 'GET';
+      const body = init?.body ? JSON.parse(init.body as string) : undefined;
+      requests.push({ url, method, body });
+
+      if (url.endsWith('/api/collections/users/auth-with-password')) {
+        return new Response(
+          JSON.stringify({
+            token: 'pb-auth-token',
+            record: { name: 'Licensed Org', active: true, additional: { version: '3.0.0' } },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.includes('/api/collections/mitrabot_sessions/records') && method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: 'existing_rec_99',
+                email: 'user@example.com',
+                token: 'old-expired-token',
+                cookies: { sid: 'old' },
+                expires_at: expiredIso,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ id: 'existing_rec_99' }), { status: 200 });
+    };
+
+    const manager = new LicenseManager({
+      url: 'https://auth.example.com',
+      token: 'secret-key',
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+
+    expect(manager.isActive).toBe(false);
+    const info = await manager.verify();
+    expect(manager.isActive).toBe(true);
+    expect(info?.name).toBe('Licensed Org');
+
+    // Expired session returns null, but caches existing_rec_99 internally
+    const validSession = await manager.getValidSession('user@example.com');
+    expect(validSession).toBeNull();
+
+    // Subsequent saveSession uses PATCH on existing_rec_99 without another GET
+    await manager.saveSession('user@example.com', 'new-jwt-token', { sid: 'new' });
+    const patchReq = requests.find((r) => r.method === 'PATCH');
+    expect(patchReq).toBeDefined();
+    expect(patchReq?.url).toBe('https://auth.example.com/api/collections/mitrabot_sessions/records/existing_rec_99');
+    expect(patchReq?.body.token).toBe('new-jwt-token');
+
+    // Telemetry uses the stored token
+    await manager.sendTelemetry('user@example.com', 'Job A', 3);
+    const telemetryReq = requests.find((r) => r.url.includes('/mitrabot_tracing/records'));
+    expect(telemetryReq).toBeDefined();
+    expect(telemetryReq?.body).toEqual({ user: 'user@example.com', job_name: 'Job A', job_count: 3 });
   });
 });
