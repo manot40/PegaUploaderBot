@@ -17,6 +17,40 @@ export interface LicenseAuthResponse {
   token?: string;
 }
 
+export interface SessionRecord {
+  id?: string;
+  email: string;
+  token: string;
+  cookies: Record<string, string> | string;
+  expires_at: string;
+}
+
+export function getTokenExpiry(token: string, fallbackTtlMs = 12 * 60 * 60 * 1000): string {
+  try {
+    const parts = token.split('.');
+    if (parts.length >= 2) {
+      const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+      const payload = JSON.parse(payloadJson);
+      if (typeof payload.exp === 'number' && !isNaN(payload.exp)) {
+        return new Date(payload.exp * 1000).toISOString();
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return new Date(Date.now() + fallbackTtlMs).toISOString();
+}
+
+export function isSessionValid(
+  record?: Pick<SessionRecord, 'token' | 'expires_at'> | null,
+  bufferMs = 60_000,
+): boolean {
+  if (!record || !record.token || !record.expires_at) return false;
+  const expiresAtMs = Date.parse(record.expires_at);
+  if (isNaN(expiresAtMs)) return false;
+  return expiresAtMs > Date.now() + bufferMs;
+}
+
 export async function checkNetwork(
   targetUrl: string = process.env.BOT_URL || 'https://hcq.payrollq.id',
   options: { maxRetries?: number; timeoutMs?: number; fetchFn?: typeof fetch } = {},
@@ -126,4 +160,84 @@ export async function sendTelemetry(
     },
     body: JSON.stringify(payload),
   });
+}
+
+export async function getCachedSession(
+  email: string,
+  options: { url?: string; token?: string; fetchFn?: typeof fetch } = {},
+): Promise<SessionRecord | null> {
+  const authUrl = options.url ?? process.env.LICENSE_URL;
+  const token = options.token;
+  const fetchFn = options.fetchFn ?? fetch;
+
+  if (!authUrl || authUrl === 'false' || !token || !email) return null;
+
+  const filterParam = encodeURIComponent(`email='${email.replace(/'/g, "\\'")}'`);
+  const endpoint = `${authUrl.replace(/\/+$/, '')}/api/collections/mitrabot_sessions/records?filter=${filterParam}&perPage=1`;
+
+  try {
+    const res = await fetchFn(endpoint, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as { items?: SessionRecord[] };
+    return data?.items?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCachedSession(
+  session: Omit<SessionRecord, 'id'>,
+  existingId?: string,
+  options: { url?: string; token?: string; fetchFn?: typeof fetch } = {},
+): Promise<void> {
+  const authUrl = options.url ?? process.env.LICENSE_URL;
+  const token = options.token;
+  const fetchFn = options.fetchFn ?? fetch;
+
+  if (!authUrl || authUrl === 'false' || !token) return;
+
+  let targetId = existingId;
+  if (!targetId) {
+    const existing = await getCachedSession(session.email, options);
+    targetId = existing?.id;
+  }
+
+  let cookiesPayload = session.cookies;
+  if (typeof cookiesPayload === 'string') {
+    try {
+      cookiesPayload = JSON.parse(cookiesPayload);
+    } catch {
+      // keep as string if not JSON
+    }
+  }
+
+  const body = JSON.stringify({
+    email: session.email,
+    token: session.token,
+    cookies: cookiesPayload,
+    expires_at: session.expires_at,
+  });
+
+  const baseEndpoint = `${authUrl.replace(/\/+$/, '')}/api/collections/mitrabot_sessions/records`;
+  const endpoint = targetId ? `${baseEndpoint}/${targetId}` : baseEndpoint;
+  const method = targetId ? 'PATCH' : 'POST';
+
+  try {
+    await fetchFn(endpoint, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+    });
+  } catch {
+    // Non-fatal
+  }
 }

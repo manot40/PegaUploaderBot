@@ -252,4 +252,35 @@ describe('MitraApiClient', () => {
     expect(apiErr.message).toBe('Gagal menyelesaikan aktivitas (CASE-101): HTTP 400');
     expect(apiErr.message).not.toContain('CASE_CLOSED');
   });
+
+  it('should restore session and send Authorization and Cookie headers on subsequent requests', async () => {
+    let capturedHeaders: Headers | undefined;
+
+    const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedHeaders = new Headers(init?.headers);
+      return new Response(JSON.stringify({ options: [] }), { status: 200 });
+    };
+
+    const client = new MitraApiClient({
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+
+    // Test restoring from object
+    client.restoreSession('restored-jwt-token', { JSESSIONID: 'abc-session', token: 'xyz' });
+    expect(client.identityToken).toBe('restored-jwt-token');
+    expect(client.getCookiesObject()).toEqual({ JSESSIONID: 'abc-session', token: 'xyz' });
+
+    await client.getUserContext();
+    expect(capturedHeaders?.get('authorization')).toBe('Bearer restored-jwt-token');
+    expect(capturedHeaders?.get('cookie')).toBe('JSESSIONID=abc-session; token=xyz');
+
+    // Test restoring from JSON string
+    client.restoreSession('new-jwt-token', JSON.stringify({ custom_cookie: '123' }));
+    expect(client.identityToken).toBe('new-jwt-token');
+    expect(client.getCookiesObject()).toEqual({ custom_cookie: '123' });
+
+    await client.getUserContext();
+    expect(capturedHeaders?.get('authorization')).toBe('Bearer new-jwt-token');
+    expect(capturedHeaders?.get('cookie')).toBe('custom_cookie=123');
+  });
 });

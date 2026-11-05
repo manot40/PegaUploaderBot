@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'bun:test';
-import { checkLicense, checkNetwork, sendTelemetry } from '../src/license';
+import {
+  checkLicense,
+  checkNetwork,
+  getCachedSession,
+  getTokenExpiry,
+  isSessionValid,
+  saveCachedSession,
+  sendTelemetry,
+} from '../src/license';
 
 describe('License & Network Verification', () => {
   it('should skip license check when LICENSE_URL or LICENSE_TOKEN is absent or false', async () => {
@@ -110,5 +118,168 @@ describe('License & Network Verification', () => {
     });
     expect(ok).toBe(true);
     expect(calls).toBe(2);
+  });
+
+  it('should decode exp from JWT token correctly in getTokenExpiry', () => {
+    const futureSec = Math.floor(Date.now() / 1000) + 3600;
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ exp: futureSec, sub: 'user123' })).toString('base64url');
+    const dummyJwt = `${header}.${payload}.signature`;
+
+    const expiryIso = getTokenExpiry(dummyJwt);
+    expect(expiryIso).toBe(new Date(futureSec * 1000).toISOString());
+  });
+
+  it('should fallback to TTL in getTokenExpiry when token is invalid or lacks exp', () => {
+    const before = Date.now();
+    const expiryIso = getTokenExpiry('not-a-jwt', 5000);
+    const after = Date.now();
+    const parsed = Date.parse(expiryIso);
+    expect(parsed).toBeGreaterThanOrEqual(before + 5000);
+    expect(parsed).toBeLessThanOrEqual(after + 5000);
+  });
+
+  it('should correctly check isSessionValid with safety buffer', () => {
+    const now = Date.now();
+    expect(isSessionValid(null)).toBe(false);
+    expect(isSessionValid({ token: '', expires_at: new Date(now + 100000).toISOString() })).toBe(false);
+    expect(isSessionValid({ token: 'tok', expires_at: 'invalid-date' })).toBe(false);
+
+    // Expired
+    expect(isSessionValid({ token: 'tok', expires_at: new Date(now - 1000).toISOString() })).toBe(false);
+
+    // Within buffer (e.g. expires in 30s when buffer is 60s)
+    expect(isSessionValid({ token: 'tok', expires_at: new Date(now + 30000).toISOString() }, 60000)).toBe(false);
+
+    // Valid (expires in 120s when buffer is 60s)
+    expect(isSessionValid({ token: 'tok', expires_at: new Date(now + 120000).toISOString() }, 60000)).toBe(true);
+  });
+
+  it('should query getCachedSession and return session record or null', async () => {
+    let capturedUrl = '';
+    let capturedHeaders: Record<string, string> | undefined;
+
+    const mockFetch = async (url: string, init?: RequestInit) => {
+      capturedUrl = url;
+      capturedHeaders = init?.headers as Record<string, string>;
+      if (url.includes('target%40example.com') || url.includes('target@example.com')) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: 'rec_123',
+                email: 'target@example.com',
+                token: 'cached-token-abc',
+                cookies: { session_id: 'sess-xyz' },
+                expires_at: '2026-11-06T00:00:00.000Z',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      return new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const empty = await getCachedSession('user@example.com', { url: '', token: '' });
+    expect(empty).toBeNull();
+
+    const notFound = await getCachedSession('notfound@example.com', {
+      url: 'https://auth.example.com',
+      token: 'jwt-bearer',
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+    expect(notFound).toBeNull();
+    expect(capturedUrl).toContain('/api/collections/mitrabot_sessions/records');
+    expect(capturedHeaders?.Authorization).toBe('Bearer jwt-bearer');
+
+    const found = await getCachedSession('target@example.com', {
+      url: 'https://auth.example.com',
+      token: 'jwt-bearer',
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+    expect(found).toBeDefined();
+    expect(found?.id).toBe('rec_123');
+    expect(found?.token).toBe('cached-token-abc');
+    expect(found?.cookies).toEqual({ session_id: 'sess-xyz' });
+  });
+
+  it('should saveCachedSession using PATCH when existingId is provided', async () => {
+    let capturedUrl = '';
+    let capturedMethod = '';
+    let capturedBody: any;
+
+    const mockFetch = async (url: string, init?: RequestInit) => {
+      capturedUrl = url;
+      capturedMethod = init?.method || '';
+      capturedBody = JSON.parse(init?.body as string);
+      return new Response('{}', { status: 200 });
+    };
+
+    await saveCachedSession(
+      {
+        email: 'user@example.com',
+        token: 'new-token',
+        cookies: '{"sess":"abc"}',
+        expires_at: '2026-11-06T00:00:00.000Z',
+      },
+      'rec_123',
+      {
+        url: 'https://auth.example.com',
+        token: 'jwt-bearer',
+        fetchFn: mockFetch as unknown as typeof fetch,
+      },
+    );
+
+    expect(capturedUrl).toBe('https://auth.example.com/api/collections/mitrabot_sessions/records/rec_123');
+    expect(capturedMethod).toBe('PATCH');
+    expect(capturedBody).toEqual({
+      email: 'user@example.com',
+      token: 'new-token',
+      cookies: { sess: 'abc' },
+      expires_at: '2026-11-06T00:00:00.000Z',
+    });
+  });
+
+  it('should saveCachedSession using POST when no existing record exists', async () => {
+    let calls = 0;
+    let postUrl = '';
+    let postMethod = '';
+    let postBody: any;
+
+    const mockFetch = async (url: string, init?: RequestInit) => {
+      calls++;
+      if (init?.method === 'GET' || !init?.method) {
+        return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      }
+      postUrl = url;
+      postMethod = init?.method || '';
+      postBody = JSON.parse(init?.body as string);
+      return new Response('{}', { status: 200 });
+    };
+
+    await saveCachedSession(
+      {
+        email: 'newuser@example.com',
+        token: 'first-token',
+        cookies: { auth: 'val' },
+        expires_at: '2026-11-06T00:00:00.000Z',
+      },
+      undefined,
+      {
+        url: 'https://auth.example.com',
+        token: 'jwt-bearer',
+        fetchFn: mockFetch as unknown as typeof fetch,
+      },
+    );
+
+    expect(calls).toBe(2); // 1 GET check, 1 POST
+    expect(postUrl).toBe('https://auth.example.com/api/collections/mitrabot_sessions/records');
+    expect(postMethod).toBe('POST');
+    expect(postBody.email).toBe('newuser@example.com');
+    expect(postBody.cookies).toEqual({ auth: 'val' });
   });
 });

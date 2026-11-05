@@ -12,7 +12,15 @@ import {
   scanActivityDirectory,
   stripExtension,
 } from './files';
-import { checkLicense, checkNetwork, sendTelemetry } from './license';
+import {
+  checkLicense,
+  checkNetwork,
+  getCachedSession,
+  getTokenExpiry,
+  isSessionValid,
+  saveCachedSession,
+  sendTelemetry,
+} from './license';
 
 function logError(error: unknown) {
   const apiError = extractApiError(error);
@@ -65,22 +73,62 @@ export async function main() {
   const client = new MitraApiClient();
   let authenticated = false;
   let currentUser = '';
+  let usingCachedSession = false;
+  let cachedSessionId: string | undefined;
 
   const envUser = process.env.BOT_USERNAME?.trim();
   const envPass = process.env.BOT_PASSWORD?.trim();
 
-  if (envUser && envPass) {
-    s.start(`Mencoba login otomatis sebagai ${color.yellow(envUser)}...`);
-    try {
-      await client.login(envUser, envPass);
-      s.stop(`Login otomatis berhasil sebagai ${color.green(envUser)}.`);
-      authenticated = true;
-      currentUser = envUser;
-    } catch (err: unknown) {
-      logError(err);
-      s.stop(color.yellow('Kredensial dari .env tidak valid. Beralih ke input manual.'));
-      if (isVerbose()) {
-        p.log.error(formatErrorMessage(err));
+  if (envUser) {
+    if (lic?.active && lic.token) {
+      s.start(`Memeriksa sesi login tersimpan untuk ${color.yellow(envUser)}...`);
+      try {
+        const cached = await getCachedSession(envUser, { token: lic.token });
+        if (isSessionValid(cached)) {
+          client.restoreSession(cached!.token, cached!.cookies);
+          s.stop(`Login otomatis berhasil menggunakan sesi tersimpan sebagai ${color.green(envUser)}.`);
+          authenticated = true;
+          currentUser = envUser;
+          usingCachedSession = true;
+          cachedSessionId = cached!.id;
+        } else {
+          cachedSessionId = cached?.id;
+          s.stop(color.yellow('Sesi tersimpan kedaluwarsa atau tidak ditemukan.'));
+        }
+      } catch (err: unknown) {
+        logError(err);
+        s.stop(color.yellow('Gagal memeriksa sesi tersimpan.'));
+      }
+    }
+
+    if (!authenticated && envPass) {
+      s.start(`Mencoba login otomatis sebagai ${color.yellow(envUser)}...`);
+      try {
+        await client.login(envUser, envPass);
+        s.stop(`Login otomatis berhasil sebagai ${color.green(envUser)}.`);
+        authenticated = true;
+        currentUser = envUser;
+        usingCachedSession = false;
+
+        if (lic?.active && lic.token && client.identityToken) {
+          const expiry = getTokenExpiry(client.identityToken);
+          await saveCachedSession(
+            {
+              email: envUser,
+              token: client.identityToken,
+              cookies: client.getCookiesObject(),
+              expires_at: expiry,
+            },
+            cachedSessionId,
+            { token: lic.token },
+          ).catch(logError);
+        }
+      } catch (err: unknown) {
+        logError(err);
+        s.stop(color.yellow('Kredensial dari .env tidak valid. Beralih ke input manual.'));
+        if (isVerbose()) {
+          p.log.error(formatErrorMessage(err));
+        }
       }
     }
   }
@@ -97,29 +145,64 @@ export async function main() {
       p.cancel('Operasi dibatalkan oleh pengguna.');
       process.exit(0);
     }
+    const email = username.trim();
 
-    const password = await p.password({
-      message: 'Masukkan Password:',
-      validate(value) {
-        if (!value) return 'Password tidak boleh kosong!';
-      },
-    });
-    if (p.isCancel(password)) {
-      p.cancel('Operasi dibatalkan oleh pengguna.');
-      process.exit(0);
+    let cached: Awaited<ReturnType<typeof getCachedSession>> = null;
+    if (lic?.active && lic.token) {
+      try {
+        cached = await getCachedSession(email, { token: lic.token });
+      } catch (err: unknown) {
+        logError(err);
+      }
     }
 
-    s.start('Mengautentikasi ke Uniport...');
-    try {
-      await client.login(username.trim(), password);
-      s.stop(color.green('Login berhasil!'));
+    if (cached && isSessionValid(cached)) {
+      client.restoreSession(cached.token, cached.cookies);
+      p.log.success(`Sesi sebelumnya ditemukan! Login otomatis sebagai ${color.green(email)}.`);
       authenticated = true;
-      currentUser = username.trim();
-    } catch (err: unknown) {
-      logError(err);
-      s.stop(color.red('Login gagal.'));
-      p.log.error(formatErrorMessage(err));
-      p.log.warn('Silakan coba masukkan email dan password kembali.');
+      currentUser = email;
+      usingCachedSession = true;
+      cachedSessionId = cached.id;
+    } else {
+      cachedSessionId = cached?.id;
+      const password = await p.password({
+        message: 'Masukkan Password:',
+        validate(value) {
+          if (!value) return 'Password tidak boleh kosong!';
+        },
+      });
+      if (p.isCancel(password)) {
+        p.cancel('Operasi dibatalkan oleh pengguna.');
+        process.exit(0);
+      }
+
+      s.start('Mengautentikasi ke Uniport...');
+      try {
+        await client.login(email, password);
+        s.stop(color.green('Login berhasil!'));
+        authenticated = true;
+        currentUser = email;
+        usingCachedSession = false;
+
+        if (lic?.active && lic.token && client.identityToken) {
+          const expiry = getTokenExpiry(client.identityToken);
+          await saveCachedSession(
+            {
+              email,
+              token: client.identityToken,
+              cookies: client.getCookiesObject(),
+              expires_at: expiry,
+            },
+            cachedSessionId,
+            { token: lic.token },
+          ).catch(logError);
+        }
+      } catch (err: unknown) {
+        logError(err);
+        s.stop(color.red('Login gagal.'));
+        p.log.error(formatErrorMessage(err));
+        p.log.warn('Silakan coba masukkan email dan password kembali.');
+      }
     }
   }
 
@@ -130,10 +213,59 @@ export async function main() {
     userContexts = await client.getUserContext();
     s.stop('Konteks pengguna berhasil diambil.');
   } catch (err: unknown) {
-    s.stop(color.red('Gagal mengambil konteks pengguna.'));
-    logError(err);
-    p.cancel(formatErrorMessage(err));
-    process.exit(1);
+    const apiError = extractApiError(err);
+    if (usingCachedSession && apiError?.status === 401) {
+      s.stop(color.yellow('Sesi tersimpan sudah kedaluwarsa di server. Silakan masukkan password.'));
+      let reAuthed = false;
+      while (!reAuthed) {
+        const password = await p.password({
+          message: `Masukkan Password untuk ${currentUser}:`,
+          validate(value) {
+            if (!value) return 'Password tidak boleh kosong!';
+          },
+        });
+        if (p.isCancel(password)) {
+          p.cancel('Operasi dibatalkan oleh pengguna.');
+          process.exit(0);
+        }
+
+        s.start('Mengautentikasi ke Uniport...');
+        try {
+          await client.login(currentUser, password);
+          s.stop(color.green('Login berhasil!'));
+          reAuthed = true;
+          usingCachedSession = false;
+
+          if (lic?.active && lic.token && client.identityToken) {
+            const expiry = getTokenExpiry(client.identityToken);
+            await saveCachedSession(
+              {
+                email: currentUser,
+                token: client.identityToken,
+                cookies: client.getCookiesObject(),
+                expires_at: expiry,
+              },
+              cachedSessionId,
+              { token: lic.token },
+            ).catch(logError);
+          }
+
+          s.start('Mengambil konteks pengguna...');
+          userContexts = await client.getUserContext();
+          s.stop('Konteks pengguna berhasil diambil.');
+        } catch (loginErr: unknown) {
+          logError(loginErr);
+          s.stop(color.red('Login gagal.'));
+          p.log.error(formatErrorMessage(loginErr));
+          p.log.warn('Silakan coba masukkan password kembali.');
+        }
+      }
+    } else {
+      s.stop(color.red('Gagal mengambil konteks pengguna.'));
+      logError(err);
+      p.cancel(formatErrorMessage(err));
+      process.exit(1);
+    }
   }
 
   let selectedCtx: UserContextOption;

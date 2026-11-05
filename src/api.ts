@@ -43,6 +43,33 @@ export class MitraApiClient {
     this.fetchFn = options.fetchFn || fetch;
   }
 
+  getCookiesObject(): Record<string, string> {
+    return Object.fromEntries(this.cookies.entries());
+  }
+
+  restoreSession(token: string, cookies?: Record<string, string> | string): void {
+    this.identityToken = token;
+    this.cookies.clear();
+    if (cookies) {
+      if (typeof cookies === 'string') {
+        try {
+          const parsed = JSON.parse(cookies);
+          if (parsed && typeof parsed === 'object') {
+            for (const [k, v] of Object.entries(parsed)) {
+              if (typeof v === 'string') this.cookies.set(k, v);
+            }
+          }
+        } catch {
+          // ignore invalid json
+        }
+      } else if (typeof cookies === 'object') {
+        for (const [k, v] of Object.entries(cookies)) {
+          if (typeof v === 'string') this.cookies.set(k, v);
+        }
+      }
+    }
+  }
+
   private updateCookies(response: Response) {
     const rawCookies = response.headers.get('set-cookie');
     if (!rawCookies) return;

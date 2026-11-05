@@ -8,17 +8,27 @@ Provides an interactive Bahasa Indonesia command-line workflow for credential en
 
 ### Requirement: Credential input with .env fallback
 
-The system SHALL read `BOT_USERNAME` and `BOT_PASSWORD` from `.env` if both are non-empty; otherwise, it SHALL prompt the user interactively in Bahasa Indonesia for their email/username and password.
+The system SHALL read `BOT_USERNAME` and `BOT_PASSWORD` from `.env` if provided; otherwise, it SHALL prompt the user interactively in Bahasa Indonesia for their email/username. When a valid license is active and a non-expired cached session matches the email in PocketBase, the system SHALL auto-login without prompting for a password, falling back to password authentication if no valid cached session exists or if the cached token is rejected.
 
 #### Scenario: Credentials provided in .env
 
 - **WHEN** both `BOT_USERNAME` and `BOT_PASSWORD` are set in `.env`
-- **THEN** the system logs in automatically using those credentials and displays the active account in Bahasa Indonesia without prompting
+- **THEN** the system reuses a valid cached session if available (when licensed) or logs in automatically using those credentials and displays the active account in Bahasa Indonesia without prompting
+
+#### Scenario: Credentials missing from .env with valid cached session
+
+- **WHEN** the user enters their email interactively while a valid license is active and a non-expired cached session exists for that email in PocketBase
+- **THEN** the system restores the cached session, skips the password prompt, and logs in automatically in Bahasa Indonesia
 
 #### Scenario: Credentials missing from .env
 
-- **WHEN** either `BOT_USERNAME` or `BOT_PASSWORD` is unset or empty
-- **THEN** the system prompts the user in Bahasa Indonesia for email/username and masked password with non-empty validation
+- **WHEN** `BOT_USERNAME` or `BOT_PASSWORD` is unset and no valid cached session exists for the entered email (or license is inactive)
+- **THEN** the system prompts the user in Bahasa Indonesia for their email/username and masked password with non-empty validation
+
+#### Scenario: Cached session rejected by upstream server
+
+- **WHEN** the system auto-logs in with a cached session but fetching user context fails with HTTP `401 Unauthorized`
+- **THEN** the system informs the user in Bahasa Indonesia, prompts for their password to perform a fresh login, and updates the cached session in PocketBase
 
 ### Requirement: Activity selection with folder file counts and empty-folder rescan
 
