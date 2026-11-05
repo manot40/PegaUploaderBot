@@ -1,9 +1,10 @@
 .env
 *.log
 dist
-jobs.json
 node_modules
-log/compress-images/*
-log/puppeteer-bot/*
+
 images/**/*
+!images/.gitkeep
+
 .DS_Store
+Thumbs.db
