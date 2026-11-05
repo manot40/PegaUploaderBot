@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
-    "strict": true,
+    "lib": ["ESNext", "DOM"],
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
     "noEmit": true,
-    "baseUrl": "src",
-    "target": "ESNext",
-    "module": "commonjs",
+    "strict": true,
     "skipLibCheck": true,
-    "noImplicitAny": true,
-    "esModuleInterop": true,
-    "preserveSymlinks": true,
-    "moduleResolution": "node",
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "types": ["bun-types"]
   }
 }

@@ -1,121 +1,101 @@
 import fs from 'fs/promises';
 import path from 'path';
-import kleur from 'kleur';
-import config from './config';
 
-import Vips from './vips/index.js';
+export const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.heic', '.avif', '.bmp', '.tiff']);
 
-class FileHandler {
-  public files: string[] = [];
+export function sanitizeActivityName(name: string): string {
+  return name
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-  private dir: string | null = null;
-  private vips: typeof Vips | null = null;
-  private temp: string;
-  private workDir: string;
-  private trashDir: string;
-  private initialized = false;
+export function stripExtension(fileName: string): string {
+  const ext = path.extname(fileName);
+  return fileName.slice(0, fileName.length - ext.length).trim();
+}
 
-  constructor(public folder = config.folder) {
-    this.workDir = path.join(process.cwd(), folder);
-    this.temp = path.join(this.workDir, '.temp');
-    this.trashDir = path.join(this.workDir, 'trash');
+export function isSupportedImage(fileName: string): boolean {
+  if (fileName.startsWith('.') || fileName.toLowerCase() === 'thumbs.db') {
+    return false;
   }
+  const ext = path.extname(fileName).toLowerCase();
+  return SUPPORTED_EXTENSIONS.has(ext);
+}
 
-  static remExt(file: string) {
-    const regex = /\.[a-z0-9]+$/i;
-    return file.replace(regex, '').trim();
-  }
+export async function ensureDirectories(activityNames: string[], baseDir = 'images'): Promise<void> {
+  const trashDir = path.join(baseDir, 'trash');
+  await fs.mkdir(trashDir, { recursive: true });
 
-  async init() {
-    if (this.initialized) return this;
-
-    const vips = (this.vips = await Vips());
-    vips.Cache.maxFiles(2);
-    vips.Cache.max(3);
-
-    await Promise.allSettled([
-      fs.mkdir(this.temp, { recursive: true }),
-      fs.mkdir(this.trashDir, { recursive: true }),
-      ...config.jobs.map((job) => {
-        return fs.mkdir(path.join(this.workDir, job.name), { recursive: true });
-      }),
-    ]);
-
-    this.initialized = true;
-    return this;
-  }
-
-  async scanDir(dir: string) {
-    const target = path.join(this.workDir, dir);
-    const files = (this.files = await fs.readdir(target));
-
-    if (!files.length) {
-      console.log(kleur.red('FOLDER KOSONG!'));
-      process.exit(1);
-    } else {
-      this.dir = target;
-    }
-
-    return files;
-  }
-
-  async compress(file: string | number): Promise<Result<string>> {
-    try {
-      if (!this.dir) throw new Error('Directory not set!');
-      if (!this.vips) throw new Error('Vips lib not loaded yet!');
-
-      const fileName = typeof file === 'number' ? this.files[file] : file;
-      const filePath = path.join(this.dir, fileName);
-      const image = this.vips.Image.newFromFile(filePath, { access: this.vips.Access.sequential });
-
-      let result: Uint8Array;
-      if (image.width > 1920) {
-        const thumb = image.thumbnailImage(image.width / 4);
-        result = thumb.writeToBuffer('.jpg', { Q: 75 });
-        thumb.delete();
-      } else {
-        result = image.writeToBuffer('.jpg', { Q: 60 });
-      }
-
-      const saveName = `${FileHandler.remExt(fileName)}.jpg`;
-      await fs.writeFile(`${this.temp}/${saveName}`, result);
-      image.delete();
-
-      return { result: saveName };
-    } catch (error: any) {
-      console.error(error.message);
-      return { error };
-    }
-  }
-
-  async cleanup(file: string | number): Promise<Result<true>> {
-    try {
-      if (!this.dir) throw new Error('Directory not set!');
-      const _file = typeof file === 'number' ? this.files[file] : file;
-      const fileJpg = FileHandler.remExt(_file) + '.jpg';
-      const dir = [`${this.temp}/${fileJpg}`, `${this.trashDir}/${fileJpg}`] as const;
-      return fs.rename(...dir).then(() => {
-        fs.unlink(`${this.dir}/${_file}`).catch(() => void 0);
-        return { result: true };
-      });
-    } catch (error: any) {
-      return { error };
-    }
-  }
-
-  async trash(file: string | number): Promise<Result<true>> {
-    try {
-      if (!this.dir) throw new Error('Directory not set!');
-      const _file = typeof file === 'number' ? this.files[file] : file;
-      await fs.rename(`${this.dir}/${_file}`, `${this.trashDir}/${_file}`);
-      return { result: true };
-    } catch (error: any) {
-      console.log(error.message);
-      return { error };
+  for (const name of activityNames) {
+    const safeName = sanitizeActivityName(name);
+    if (safeName) {
+      await fs.mkdir(path.join(baseDir, safeName), { recursive: true });
     }
   }
 }
 
-type Result<T> = { result: T; error?: never } | { result?: never; error: Error };
+export async function scanActivityDirectory(activityName: string, baseDir = 'images'): Promise<string[]> {
+  const safeName = sanitizeActivityName(activityName);
+  const targetDir = path.join(baseDir, safeName);
 
-export default FileHandler;
+  try {
+    const entries = await fs.readdir(targetDir);
+    return entries.filter(isSupportedImage);
+  } catch {
+    return [];
+  }
+}
+
+export interface CompressedImageResult {
+  blob: Blob;
+  originalWidth: number;
+  compressedWidth: number;
+}
+
+export async function compressImage(filePath: string): Promise<CompressedImageResult> {
+  const file = Bun.file(filePath);
+  const img = file.image();
+  const meta = await img.metadata();
+  const width = meta.width;
+
+  if (width > 1920) {
+    const targetWidth = Math.round(width / 4);
+    const blob = await img.resize(targetWidth).jpeg({ quality: 75 }).blob();
+    return {
+      blob,
+      originalWidth: width,
+      compressedWidth: targetWidth,
+    };
+  }
+
+  const blob = await img.jpeg({ quality: 60 }).blob();
+  return {
+    blob,
+    originalWidth: width,
+    compressedWidth: width,
+  };
+}
+
+export async function moveToTrash(filePath: string, trashDir = 'images/trash'): Promise<string> {
+  await fs.mkdir(trashDir, { recursive: true });
+  const fileName = path.basename(filePath);
+  const destination = path.join(trashDir, fileName);
+
+  try {
+    // Attempt rename directly
+    await fs.rename(filePath, destination);
+  } catch (err: unknown) {
+    // If destination already exists or cross-device, remove destination and copy/unlink
+    const isExdev = (err as { code?: string })?.code === 'EXDEV';
+    await fs.unlink(destination).catch(() => {});
+    if (isExdev) {
+      await fs.copyFile(filePath, destination);
+      await fs.unlink(filePath);
+    } else {
+      await fs.rename(filePath, destination);
+    }
+  }
+
+  return destination;
+}
