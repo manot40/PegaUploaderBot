@@ -161,4 +161,4 @@ To generate the standalone production executable:
 bun run build
 ```
 
-This invokes `build.ts`, which compiles `src/index.ts` with `--bytecode`, `--minify`, `--target=bun-windows-x64`, and defines compile-time variables for `LICENSE_URL` and `LICENSE_TOKEN`.
+This invokes `build.ts`, which compiles `src/index.ts` with `--bytecode`, `--minify`, `--target=bun-windows-x64`, and defines compile-time variables for `LICENSE_URL`, `LICENSE_TOKEN`, and `LICENSE_USER`.

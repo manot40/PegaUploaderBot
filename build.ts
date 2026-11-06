@@ -18,6 +18,7 @@ async function build() {
 
   const authUrl = process.env.LICENSE_URL ? `"${process.env.LICENSE_URL}"` : '"false"';
   const token = process.env.LICENSE_TOKEN ? `"${process.env.LICENSE_TOKEN}"` : '"false"';
+  const user = process.env.LICENSE_USER ? `"${process.env.LICENSE_USER}"` : '"false"';
 
   const args = [
     'bun',
@@ -32,6 +33,8 @@ async function build() {
     `process.env.LICENSE_URL=${authUrl}`,
     `--define`,
     `process.env.LICENSE_TOKEN=${token}`,
+    `--define`,
+    `process.env.LICENSE_USER=${user}`,
   ];
 
   if (process.platform === 'win32') args.push('--windows-icon=icon.ico');

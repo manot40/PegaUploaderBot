@@ -84,6 +84,7 @@ BOT_PASSWORD=""
 # Optional: PocketBase License & Telemetry (injected automatically in production builds)
 LICENSE_URL="https://your-pocketbase-server.com"
 LICENSE_TOKEN="your-license-secret-token"
+LICENSE_USER="your-license-identity-username"
 
 # Optional: Verbose API error diagnostics
 VERBOSE=false
@@ -166,13 +167,13 @@ The output executable will be created at:
 dist/bot-pega-mitra.exe
 ```
 
-> **Note**: `build.ts` automatically embeds `LICENSE_URL` and `LICENSE_TOKEN` into the binary at compile time using Bun's `--define` feature.
+> **Note**: `build.ts` automatically embeds `LICENSE_URL`, `LICENSE_TOKEN`, and `LICENSE_USER` into the binary at compile time using Bun's `--define` feature.
 
 ---
 
 ## 🔄 User Workflow Step-by-Step
 
-1. **Network & License Verification**: The bot verifies connection to `BOT_URL` and validates active license credentials.
+1. **Network & License Verification**: The bot verifies connection to `BOT_URL` and validates active license credentials against PocketBase (`LICENSE_URL`, `LICENSE_USER`, and `LICENSE_TOKEN`), verifying version support and active status.
 2. **Authentication**:
    - If `BOT_USERNAME` is provided in `.env` and a cached session exists in PocketBase, it automatically restores the session.
    - Otherwise, you will be prompted for your Email/Username. If a valid cached session is found, password entry is skipped.

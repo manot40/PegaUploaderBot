@@ -8,7 +8,7 @@ Handles startup network and license validation, authenticates users against the 
 
 ### Requirement: Startup network and license verification
 
-The system SHALL verify network connectivity to the configured base URL (`BOT_URL`, defaulting to `https://hcq.payrollq.id`) and, when build-time `AUTH_URL` and `TOKEN` constants are defined, validate the license against `/api/collections/users/auth-with-password` before allowing authentication.
+The system SHALL verify network connectivity to the configured base URL (`BOT_URL`, defaulting to `https://hcq.payrollq.id`) and, when build-time `LICENSE_URL` and `LICENSE_TOKEN` constants are defined, validate the license with `LICENSE_USER` against `/api/collections/users/auth-with-password` before allowing authentication.
 
 #### Scenario: Reachable network and active license
 

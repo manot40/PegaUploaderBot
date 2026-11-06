@@ -19,23 +19,30 @@ describe('License & Network Verification', () => {
     expect(res2).toBeUndefined();
   });
 
-  it('should succeed when license server returns active === true', async () => {
-    const mockFetch = async () =>
-      new Response(
+  it('should succeed when license server returns active === true and version is supported', async () => {
+    let capturedBody: string | undefined;
+    const mockFetch = async (_url: string, init?: RequestInit) => {
+      capturedBody = init?.body as string;
+      return new Response(
         JSON.stringify({
           token: 'jwt-bearer-token',
           record: {
             name: 'License User A',
             active: true,
-            additional: { version: '3.0.0' },
+            additional: {
+              latest: '3.0.0',
+              versions: { '3.0.0': true },
+            },
           },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
+    };
 
     const result = await checkLicense({
       url: 'https://auth.example.com',
       token: 'secret-token',
+      user: 'custom-user',
       fetchFn: mockFetch as unknown as typeof fetch,
     });
 
@@ -44,6 +51,111 @@ describe('License & Network Verification', () => {
     expect(result?.name).toBe('License User A');
     expect(result?.version).toBe('3.0.0');
     expect(result?.token).toBe('jwt-bearer-token');
+    expect(JSON.parse(capturedBody!)).toEqual({
+      identity: 'custom-user',
+      password: 'secret-token',
+    });
+  });
+
+  it('should use LICENSE_USER from process.env when user option is omitted', async () => {
+    let capturedBody: string | undefined;
+    const prevUser = process.env.LICENSE_USER;
+    process.env.LICENSE_USER = 'env-license-user';
+    try {
+      const mockFetch = async (_url: string, init?: RequestInit) => {
+        capturedBody = init?.body as string;
+        return new Response(
+          JSON.stringify({
+            token: 'jwt-token',
+            record: {
+              name: 'Env User',
+              active: true,
+              additional: {
+                latest: '3.0.0',
+                versions: { '3.0.0': true },
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      };
+
+      await checkLicense({
+        url: 'https://auth.example.com',
+        token: 'secret-token',
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({
+        identity: 'env-license-user',
+        password: 'secret-token',
+      });
+    } finally {
+      process.env.LICENSE_USER = prevUser;
+    }
+  });
+
+  it('should throw ApiError with status when license credentials are rejected', async () => {
+    const mockFetch = async () =>
+      new Response(JSON.stringify({ message: 'Failed to authenticate.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+    expect(
+      checkLicense({
+        url: 'https://auth.example.com',
+        token: 'invalid-token',
+        user: 'invalid-user',
+        fetchFn: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow('Gagal verifikasi status bot: Kredensial lisensi tidak valid.');
+  });
+
+  it('should throw error when bot version is not supported in license versions', async () => {
+    const mockFetch = async () =>
+      new Response(
+        JSON.stringify({
+          record: {
+            name: 'License User C',
+            active: true,
+            additional: {
+              latest: '4.0.0',
+              versions: { '3.0.0': false },
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+
+    expect(
+      checkLicense({
+        url: 'https://auth.example.com',
+        token: 'secret-token',
+        fetchFn: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow('Silakan hubungi pengembang.');
+  });
+
+  it('should throw error when license additional metadata or versions is missing', async () => {
+    const mockFetch = async () =>
+      new Response(
+        JSON.stringify({
+          record: {
+            name: 'License User D',
+            active: true,
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+
+    expect(
+      checkLicense({
+        url: 'https://auth.example.com',
+        token: 'secret-token',
+        fetchFn: mockFetch as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow('Silakan hubungi pengembang.');
   });
 
   it('should send telemetry with bearer token when license is valid', async () => {
@@ -92,7 +204,7 @@ describe('License & Network Verification', () => {
         token: 'secret-token',
         fetchFn: mockFetch as unknown as typeof fetch,
       }),
-    ).rejects.toThrow('Bot Kedaluwarsa. Silakan hubungi pengembang.');
+    ).rejects.toThrow('Silakan hubungi pengembang.');
   });
 
   it('should check network reachability successfully', async () => {
@@ -298,7 +410,11 @@ describe('License & Network Verification', () => {
         return new Response(
           JSON.stringify({
             token: 'pb-auth-token',
-            record: { name: 'Licensed Org', active: true, additional: { version: '3.0.0' } },
+            record: {
+              name: 'Licensed Org',
+              active: true,
+              additional: { latest: '3.0.0', versions: { '3.0.0': true } },
+            },
           }),
           { status: 200 },
         );
@@ -327,6 +443,7 @@ describe('License & Network Verification', () => {
     const manager = new LicenseManager({
       url: 'https://auth.example.com',
       token: 'secret-key',
+      user: 'manager-user',
       fetchFn: mockFetch as unknown as typeof fetch,
     });
 
@@ -334,6 +451,8 @@ describe('License & Network Verification', () => {
     const info = await manager.verify();
     expect(manager.isActive).toBe(true);
     expect(info?.name).toBe('Licensed Org');
+    const authReq = requests.find((r) => r.url.endsWith('/auth-with-password'));
+    expect(authReq?.body).toEqual({ identity: 'manager-user', password: 'secret-key' });
 
     // Expired session returns null, but caches existing_rec_99 internally
     const validSession = await manager.getValidSession('user@example.com');

@@ -75,7 +75,7 @@ export class MainBot {
     this.spinner.start('Memeriksa koneksi jaringan...');
     try {
       await this.checkNetworkFn();
-      this.spinner.stop('Koneksi jaringan terhubung.');
+      this.spinner.stop('Terhubung ke jaringan.');
     } catch (err: unknown) {
       this.spinner.stop(color.red('Gagal terhubung ke jaringan.'));
       await this.logErrorFn(err);
@@ -90,10 +90,10 @@ export class MainBot {
       if (!lic) {
         this.spinner.stop(color.yellow('Versi bot tidak diketahui.'));
       } else {
-        this.spinner.stop(`Versi Bot: ${lic.version} | Status: ${color.green(lic.name || 'Aktif')}`);
+        this.spinner.stop(`Version: ${lic.version} | Licensed to ${color.green(lic.name || 'Aktif')}`);
       }
     } catch (err: unknown) {
-      this.spinner.stop(color.red('Gagal verifikasi lisensi.'));
+      this.spinner.stop(color.red('Gagal verifikasi status bot.'));
       await this.logErrorFn(err);
       this.ui.cancel(formatErrorMessage(err));
       this.exitFn(2);
