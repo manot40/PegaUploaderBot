@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { ApiError, MitraApiClient } from '../src/api';
+import { ApiError, UniportApiClient } from '../src/api';
 
-describe('MitraApiClient', () => {
+describe('UniportApiClient', () => {
   it('should successfully authenticate through Uniport with DPoP', async () => {
     const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -36,7 +36,7 @@ describe('MitraApiClient', () => {
       return new Response('Not found', { status: 404 });
     };
 
-    const client = new MitraApiClient({
+    const client = new UniportApiClient({
       baseUrl: 'https://hcq.payrollq.id',
       fetchFn: mockFetch as unknown as typeof fetch,
     });
@@ -61,7 +61,7 @@ describe('MitraApiClient', () => {
       return new Response('Not found', { status: 404 });
     };
 
-    const client = new MitraApiClient({
+    const client = new UniportApiClient({
       fetchFn: mockFetch as unknown as typeof fetch,
     });
 
@@ -114,7 +114,7 @@ describe('MitraApiClient', () => {
       return new Response('Not found', { status: 404 });
     };
 
-    const client = new MitraApiClient({
+    const client = new UniportApiClient({
       fetchFn: mockFetch as unknown as typeof fetch,
     });
     client.identityToken = 'valid-token';
@@ -155,7 +155,7 @@ describe('MitraApiClient', () => {
       return new Response('Not found', { status: 404 });
     };
 
-    const client = new MitraApiClient({
+    const client = new UniportApiClient({
       fetchFn: mockFetch as unknown as typeof fetch,
     });
     client.identityToken = 'valid-token';
@@ -202,7 +202,7 @@ describe('MitraApiClient', () => {
       return new Response('Not found', { status: 404 });
     };
 
-    const client = new MitraApiClient({
+    const client = new UniportApiClient({
       fetchFn: mockFetch as unknown as typeof fetch,
     });
 
@@ -228,7 +228,7 @@ describe('MitraApiClient', () => {
       return new Response('Not found', { status: 404 });
     };
 
-    const client = new MitraApiClient({
+    const client = new UniportApiClient({
       fetchFn: mockFetch as unknown as typeof fetch,
     });
     client.identityToken = 'valid-token';
@@ -251,5 +251,136 @@ describe('MitraApiClient', () => {
     expect(apiErr.payload).toContain('CASE_CLOSED');
     expect(apiErr.message).toBe('Gagal menyelesaikan aktivitas (CASE-101): HTTP 400');
     expect(apiErr.message).not.toContain('CASE_CLOSED');
+  });
+
+  it('should restore session and send Authorization and Cookie headers on subsequent requests', async () => {
+    let capturedHeaders: Headers | undefined;
+
+    const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedHeaders = new Headers(init?.headers);
+      return new Response(JSON.stringify({ options: [] }), { status: 200 });
+    };
+
+    const client = new UniportApiClient({
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+
+    // Test restoring from object
+    client.restoreSession('restored-jwt-token', { JSESSIONID: 'abc-session', token: 'xyz' });
+    expect(client.identityToken).toBe('restored-jwt-token');
+    expect(client.getCookiesObject()).toEqual({ JSESSIONID: 'abc-session', token: 'xyz' });
+
+    await client.getUserContext();
+    expect(capturedHeaders?.get('authorization')).toBe('Bearer restored-jwt-token');
+    expect(capturedHeaders?.get('cookie')).toBe('JSESSIONID=abc-session; token=xyz');
+
+    // Test restoring from JSON string
+    client.restoreSession('new-jwt-token', JSON.stringify({ custom_cookie: '123' }));
+    expect(client.identityToken).toBe('new-jwt-token');
+    expect(client.getCookiesObject()).toEqual({ custom_cookie: '123' });
+
+    await client.getUserContext();
+    expect(capturedHeaders?.get('authorization')).toBe('Bearer new-jwt-token');
+    expect(capturedHeaders?.get('cookie')).toBe('custom_cookie=123');
+  });
+
+  it('should invoke onSessionUpdate when login or mid-session 401 refresh succeeds', async () => {
+    const events: { username: string; token: string; cookies: Record<string, string> }[] = [];
+    let handoffCount = 0;
+
+    const mockFetch = async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/uniport/create-session')) {
+        return new Response(JSON.stringify({ sessionId: 's1' }), { status: 200 });
+      }
+      if (url.includes('/api/uniport/check-session')) {
+        return new Response(JSON.stringify({ status: 'pending' }), { status: 200 });
+      }
+      if (url.includes('/api/uniport/login-password')) {
+        return new Response(JSON.stringify({ status: 'verified' }), { status: 200 });
+      }
+      if (url.includes('/api/uniport/consume-session')) {
+        return new Response(JSON.stringify({ identityToken: 'h1' }), { status: 200 });
+      }
+      if (url.includes('/api/uniport/handoff-token')) {
+        handoffCount++;
+        return new Response(JSON.stringify({ identityToken: `jwt-${handoffCount}` }), {
+          status: 200,
+          headers: { 'set-cookie': `SID=cookie-${handoffCount}; Path=/` },
+        });
+      }
+      return new Response('Not found', { status: 404 });
+    };
+
+    const client = new UniportApiClient({
+      fetchFn: mockFetch as unknown as typeof fetch,
+      onSessionUpdate: (ev) => {
+        events.push(ev);
+      },
+    });
+
+    await client.login('alice@example.com', 'secret');
+    expect(events).toEqual([
+      {
+        username: 'alice@example.com',
+        token: 'jwt-1',
+        cookies: { SID: 'cookie-1' },
+      },
+    ]);
+  });
+
+  it('should include full real browser headers in every request made by UniportApiClient', async () => {
+    const capturedHeadersList: Headers[] = [];
+
+    const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      capturedHeadersList.push(new Headers(init?.headers));
+
+      if (url.includes('/api/uniport/create-session'))
+        return new Response(JSON.stringify({ sessionId: 's1' }), { status: 200 });
+      if (url.includes('/api/uniport/check-session'))
+        return new Response(JSON.stringify({ status: 'pending' }), { status: 200 });
+      if (url.includes('/api/uniport/login-password'))
+        return new Response(JSON.stringify({ status: 'verified' }), { status: 200 });
+      if (url.includes('/api/uniport/consume-session'))
+        return new Response(JSON.stringify({ identityToken: 'h1' }), { status: 200 });
+      if (url.includes('/api/uniport/handoff-token'))
+        return new Response(JSON.stringify({ identityToken: 'tok123' }), { status: 200 });
+      if (url.includes('/api/mitra/v1/aktivitas-mitra/mulai/context'))
+        return new Response(JSON.stringify({ options: [] }), { status: 200 });
+
+      return new Response('Not found', { status: 404 });
+    };
+
+    const client = new UniportApiClient({
+      baseUrl: 'https://hcq.payrollq.id',
+      fetchFn: mockFetch as unknown as typeof fetch,
+    });
+
+    await client.login('user@test.com', 'pass123');
+    await client.getUserContext();
+
+    expect(capturedHeadersList.length).toBe(6); // 5 login steps + 1 context call
+
+    for (const headers of capturedHeadersList) {
+      expect(headers.get('user-agent')).toContain('Mozilla/5.0');
+      expect(headers.get('user-agent')).toContain('Chrome/');
+      expect(headers.get('sec-ch-ua')).toContain('Google Chrome');
+      expect(headers.get('sec-ch-ua-mobile')).toBe('?0');
+      expect(headers.get('sec-ch-ua-platform')).toBe('"Windows"');
+      expect(headers.get('sec-fetch-dest')).toBe('empty');
+      expect(headers.get('sec-fetch-mode')).toBe('cors');
+      expect(headers.get('sec-fetch-site')).toBe('same-origin');
+      expect(headers.get('accept-language')).toBe('id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7');
+      expect(headers.get('origin')).toBe('https://hcq.payrollq.id');
+    }
+
+    // Login steps should refer to /login
+    for (let i = 0; i < 5; i++) {
+      expect(capturedHeadersList[i].get('referer')).toBe('https://hcq.payrollq.id/login');
+    }
+
+    // Mitra steps should refer to /mitra/input-aktivitas-mitra
+    expect(capturedHeadersList[5].get('referer')).toBe('https://hcq.payrollq.id/mitra/input-aktivitas-mitra');
   });
 });

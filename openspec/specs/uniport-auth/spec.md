@@ -56,3 +56,27 @@ The system SHALL transparently re-authenticate using the stored credentials in m
 
 - **WHEN** a Mitra API call returns HTTP `401 Unauthorized` during an active CLI session
 - **THEN** the system executes a fresh Uniport + DPoP authentication flow in the background and retries the failed Mitra API request with the new `identityToken`
+
+### Requirement: PocketBase session caching and restoration
+
+When a valid license is active, the system SHALL query and persist authenticated session data (`email`, `token`, `cookies`, and `expires_at` decoded from the JWT `exp` claim) in the `mitrabot_sessions` PocketBase collection on `LICENSE_URL` using the license bearer token, updating (`PATCH`) an existing record for the email or creating (`POST`) a new record.
+
+#### Scenario: Saving a newly authenticated session for a new email
+
+- **WHEN** a user authenticates with email and password while the license is active and no record exists for that email in `mitrabot_sessions`
+- **THEN** the system decodes `exp` from the Mitra JWT `identityToken` and creates (`POST`) a record in `/api/collections/mitrabot_sessions/records` with `email`, `token`, `cookies`, and `expires_at`
+
+#### Scenario: Updating an existing session record for a returning email
+
+- **WHEN** a user authenticates with email and password while the license is active and a record already exists for that email in `mitrabot_sessions`
+- **THEN** the system updates (`PATCH`) the existing record in `/api/collections/mitrabot_sessions/records/<id>` with the new `token`, `cookies`, and `expires_at`
+
+#### Scenario: Restoring a valid cached session
+
+- **WHEN** a cached session record for the email is retrieved from `mitrabot_sessions` and its `expires_at` timestamp is in the future (with at least 60 seconds remaining)
+- **THEN** the system restores `identityToken` and `cookies` into the API client without executing the Uniport session or DPoP login requests
+
+#### Scenario: Skipping session cache when license is not active
+
+- **WHEN** `LICENSE_URL` or `LICENSE_TOKEN` is unconfigured or inactive
+- **THEN** the system skips all `mitrabot_sessions` queries and writes

@@ -1,3 +1,4 @@
+import fs from 'fs/promises';
 import { color } from './color';
 
 export interface ApiErrorOptions {
@@ -48,4 +49,18 @@ export function formatErrorMessage(error: unknown, verbose = isVerbose()): strin
   }
 
   return String(error);
+}
+
+export async function logError(error: unknown, logFilePath = 'error.log'): Promise<void> {
+  const apiError = extractApiError(error);
+  let message: string;
+  if (apiError && apiError.payload) {
+    message = `${apiError.stack || apiError.message}\nPayload API (${apiError.endpoint || 'unknown'} - HTTP ${apiError.status}): ${apiError.payload}`;
+  } else if (error instanceof Error) {
+    message = error.stack || error.message;
+  } else {
+    message = String(error);
+  }
+  const logLine = `[${new Date().toISOString()}] ${message}\n`;
+  await fs.appendFile(logFilePath, logLine, 'utf8').catch(() => {});
 }

@@ -1,5 +1,6 @@
 import { createDPoPClient } from './dpop';
 import { ApiError, type ApiErrorOptions } from './error';
+import { createBrowserHeaders } from './headers';
 
 export { ApiError, type ApiErrorOptions };
 
@@ -25,14 +26,29 @@ export interface FinishActivityInput {
   fileName: string;
 }
 
+export interface SessionUpdateEvent {
+  username: string;
+  token: string;
+  cookies: Record<string, string>;
+}
+
 export interface ApiClientOptions {
   baseUrl?: string;
   fetchFn?: typeof fetch;
+  onSessionUpdate?: (event: SessionUpdateEvent) => void | Promise<void>;
 }
 
-export class MitraApiClient {
+export interface ApiRequestOptions extends RequestInit {
+  isRetry?: boolean;
+  skipAuthRetry?: boolean;
+  skipAuthToken?: boolean;
+  referer?: string;
+}
+
+export class UniportApiClient {
   public baseUrl: string;
   private fetchFn: typeof fetch;
+  public onSessionUpdate?: (event: SessionUpdateEvent) => void | Promise<void>;
 
   private credentials: { username: string; password: string } | null = null;
   public identityToken: string | null = null;
@@ -41,6 +57,34 @@ export class MitraApiClient {
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl || process.env.BOT_URL || 'https://hcq.payrollq.id').replace(/\/+$/, '');
     this.fetchFn = options.fetchFn || fetch;
+    this.onSessionUpdate = options.onSessionUpdate;
+  }
+
+  getCookiesObject(): Record<string, string> {
+    return Object.fromEntries(this.cookies.entries());
+  }
+
+  restoreSession(token: string, cookies?: Record<string, string> | string): void {
+    this.identityToken = token;
+    this.cookies.clear();
+    if (cookies) {
+      if (typeof cookies === 'string') {
+        try {
+          const parsed = JSON.parse(cookies);
+          if (parsed && typeof parsed === 'object') {
+            for (const [k, v] of Object.entries(parsed)) {
+              if (typeof v === 'string') this.cookies.set(k, v);
+            }
+          }
+        } catch {
+          // ignore invalid json
+        }
+      } else if (typeof cookies === 'object') {
+        for (const [k, v] of Object.entries(cookies)) {
+          if (typeof v === 'string') this.cookies.set(k, v);
+        }
+      }
+    }
   }
 
   private updateCookies(response: Response) {
@@ -68,85 +112,117 @@ export class MitraApiClient {
       .join('; ');
   }
 
-  private async request(endpoint: string, init: RequestInit, isRetry = false): Promise<Response> {
+  private async request(endpoint: string, options: ApiRequestOptions = {}): Promise<Response> {
+    const {
+      isRetry = false,
+      skipAuthRetry = false,
+      skipAuthToken = false,
+      referer,
+      headers: initHeaders,
+      ...fetchInit
+    } = options;
+
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
-    const headers = new Headers(init.headers);
+
+    const customHeaders: Record<string, string> = {};
+    if (initHeaders) {
+      if (initHeaders instanceof Headers) {
+        initHeaders.forEach((val, key) => {
+          customHeaders[key] = val;
+        });
+      } else if (Array.isArray(initHeaders)) {
+        for (const [key, val] of initHeaders) {
+          customHeaders[key] = val;
+        }
+      } else {
+        Object.assign(customHeaders, initHeaders);
+      }
+    }
 
     const cookieHeader = this.getCookieHeader();
-    if (cookieHeader && !headers.has('cookie')) {
-      headers.set('cookie', cookieHeader);
+    if (cookieHeader && !customHeaders['cookie']) {
+      customHeaders['cookie'] = cookieHeader;
     }
 
-    if (this.identityToken && !headers.has('authorization')) {
-      headers.set('authorization', `Bearer ${this.identityToken}`);
+    if (!skipAuthToken && this.identityToken && !customHeaders['authorization']) {
+      customHeaders['authorization'] = `Bearer ${this.identityToken}`;
     }
+
+    const headers = createBrowserHeaders({
+      url,
+      origin: this.baseUrl,
+      referer: referer ?? `${this.baseUrl}/mitra/input-aktivitas-mitra`,
+      headers: customHeaders,
+    });
 
     const response = await this.fetchFn(url, {
-      ...init,
+      ...fetchInit,
       headers,
     });
 
     this.updateCookies(response);
 
-    if (response.status === 401 && !isRetry && this.credentials) {
+    if (response.status === 401 && !isRetry && !skipAuthRetry && this.credentials) {
       // Token expired, re-authenticate and retry once
       await this.login(this.credentials.username, this.credentials.password);
-      return this.request(endpoint, init, true);
+      return this.request(endpoint, { ...options, isRetry: true });
     }
 
     return response;
   }
 
+  private async assertOk(res: Response, endpoint: string, message: string): Promise<void> {
+    if (res.ok) return;
+    const payload = await res.text().catch(() => '');
+    throw new ApiError(message, {
+      status: res.status,
+      payload,
+      endpoint,
+    });
+  }
+
   async login(username: string, password: string): Promise<string> {
     this.credentials = { username, password };
     const dpopClient = await createDPoPClient();
+    const loginReferer = `${this.baseUrl}/login`;
 
     // 1. Create session
     const createSessEndpoint = '/api/uniport/create-session';
-    const createSessRes = await this.fetchFn(`${this.baseUrl}${createSessEndpoint}`, {
+    const createSessRes = await this.request(createSessEndpoint, {
       method: 'POST',
       headers: {
         accept: '*/*',
         'content-type': 'application/json',
       },
       body: null,
+      skipAuthRetry: true,
+      skipAuthToken: true,
+      referer: loginReferer,
     });
 
-    if (!createSessRes.ok) {
-      const payload = await createSessRes.text().catch(() => '');
-      const message = `Gagal membuat sesi Uniport: HTTP ${createSessRes.status}`;
-      throw new ApiError(message, {
-        status: createSessRes.status,
-        payload,
-        endpoint: createSessEndpoint,
-      });
-    }
+    await this.assertOk(createSessRes, createSessEndpoint, `Gagal membuat sesi Uniport: HTTP ${createSessRes.status}`);
     const sessData = (await createSessRes.json()) as { sessionId: string };
     const sessionId = sessData.sessionId;
 
     // 2. Check session
     const checkSessEndpoint = '/api/uniport/check-session';
-    const checkSessRes = await this.fetchFn(
-      `${this.baseUrl}${checkSessEndpoint}?sessionId=${encodeURIComponent(sessionId)}`,
-      {
-        method: 'GET',
-        headers: { accept: '*/*' },
-      },
-    );
+    const checkSessRes = await this.request(`${checkSessEndpoint}?sessionId=${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+      headers: { accept: '*/*' },
+      skipAuthRetry: true,
+      skipAuthToken: true,
+      referer: loginReferer,
+    });
 
-    if (!checkSessRes.ok) {
-      const payload = await checkSessRes.text().catch(() => '');
-      const message = `Gagal memeriksa status sesi Uniport: HTTP ${checkSessRes.status}`;
-      throw new ApiError(message, {
-        status: checkSessRes.status,
-        payload,
-        endpoint: checkSessEndpoint,
-      });
-    }
+    await this.assertOk(
+      checkSessRes,
+      checkSessEndpoint,
+      `Gagal memeriksa status sesi Uniport: HTTP ${checkSessRes.status}`,
+    );
 
     // 3. Login password
     const loginEndpoint = '/api/uniport/login-password';
-    const loginRes = await this.fetchFn(`${this.baseUrl}${loginEndpoint}`, {
+    const loginRes = await this.request(loginEndpoint, {
       method: 'POST',
       headers: {
         accept: '*/*',
@@ -157,17 +233,16 @@ export class MitraApiClient {
         login: username,
         password,
       }),
+      skipAuthRetry: true,
+      skipAuthToken: true,
+      referer: loginReferer,
     });
 
-    if (!loginRes.ok) {
-      const payload = await loginRes.text().catch(() => '');
-      const message = `Kredensial login tidak valid (${loginRes.status}): Username atau password salah`;
-      throw new ApiError(message, {
-        status: loginRes.status,
-        payload,
-        endpoint: loginEndpoint,
-      });
-    }
+    await this.assertOk(
+      loginRes,
+      loginEndpoint,
+      `Kredensial login tidak valid (${loginRes.status}): Username atau password salah`,
+    );
 
     const loginData = (await loginRes.json()) as { status: string };
     if (loginData.status !== 'verified') {
@@ -187,7 +262,7 @@ export class MitraApiClient {
       htu: consumeHtu,
     });
 
-    const consumeRes = await this.fetchFn(consumeHtu, {
+    const consumeRes = await this.request(consumeEndpoint, {
       method: 'POST',
       headers: {
         accept: '*/*',
@@ -195,18 +270,12 @@ export class MitraApiClient {
         dpop: consumeProof,
       },
       body: JSON.stringify({ sessionId }),
+      skipAuthRetry: true,
+      skipAuthToken: true,
+      referer: loginReferer,
     });
 
-    if (!consumeRes.ok) {
-      const payload = await consumeRes.text().catch(() => '');
-      const message = `Gagal mengonsumsi sesi: HTTP ${consumeRes.status}`;
-      throw new ApiError(message, {
-        status: consumeRes.status,
-        payload,
-        endpoint: consumeEndpoint,
-      });
-    }
-    this.updateCookies(consumeRes);
+    await this.assertOk(consumeRes, consumeEndpoint, `Gagal mengonsumsi sesi: HTTP ${consumeRes.status}`);
     const consumeData = (await consumeRes.json()) as { identityToken: string };
     const handoffToken = consumeData.identityToken;
 
@@ -219,7 +288,7 @@ export class MitraApiClient {
       accessToken: handoffToken,
     });
 
-    const handoffRes = await this.fetchFn(handoffHtu, {
+    const handoffRes = await this.request(endpoint, {
       method: 'POST',
       headers: {
         accept: '*/*',
@@ -228,16 +297,25 @@ export class MitraApiClient {
         dpop: handoffProof,
       },
       body: JSON.stringify({ as: 'token', tenantId: 'MITRA', monolithKey: 'hcqxpayrollq' }),
+      skipAuthRetry: true,
+      skipAuthToken: true,
+      referer: loginReferer,
     });
 
-    if (!handoffRes.ok) {
-      const payload = await handoffRes.text().catch(() => '');
-      const message = `Gagal menukarkan token handoff Mitra: HTTP ${handoffRes.status}`;
-      throw new ApiError(message, { status: handoffRes.status, payload, endpoint });
-    }
-    this.updateCookies(handoffRes);
+    await this.assertOk(handoffRes, endpoint, `Gagal menukarkan token handoff Mitra: HTTP ${handoffRes.status}`);
     const handoffData = (await handoffRes.json()) as { identityToken: string };
     this.identityToken = handoffData.identityToken;
+
+    if (this.onSessionUpdate && this.identityToken) {
+      await Promise.resolve(
+        this.onSessionUpdate({
+          username,
+          token: this.identityToken,
+          cookies: this.getCookiesObject(),
+        }),
+      );
+    }
+
     return this.identityToken;
   }
 
@@ -255,11 +333,7 @@ export class MitraApiClient {
       }),
     );
 
-    if (!res.ok) {
-      const payload = await res.text().catch(() => '');
-      const message = `Gagal mengambil konteks pengguna: HTTP ${res.status}`;
-      throw new ApiError(message, { status: res.status, payload, endpoint });
-    }
+    await this.assertOk(res, endpoint, `Gagal mengambil konteks pengguna: HTTP ${res.status}`);
 
     const data = (await res.json()) as { options: UserContextOption[] };
     return data.options || [];
@@ -285,11 +359,7 @@ export class MitraApiClient {
       }),
     );
 
-    if (!res.ok) {
-      const payload = await res.text().catch(() => '');
-      const message = `Gagal mengambil daftar aktivitas: HTTP ${res.status}`;
-      throw new ApiError(message, { status: res.status, payload, endpoint });
-    }
+    await this.assertOk(res, endpoint, `Gagal mengambil daftar aktivitas: HTTP ${res.status}`);
 
     const data = (await res.json()) as { items: ActivityItem[] };
     return data.items || [];
@@ -311,11 +381,7 @@ export class MitraApiClient {
       }),
     );
 
-    if (!res.ok) {
-      const payload = await res.text().catch(() => '');
-      const message = `Gagal memulai aktivitas: HTTP ${res.status}`;
-      throw new ApiError(message, { status: res.status, payload, endpoint });
-    }
+    await this.assertOk(res, endpoint, `Gagal memulai aktivitas: HTTP ${res.status}`);
 
     const data = (await res.json()) as { caseNumber: string };
     return data.caseNumber;
@@ -339,11 +405,7 @@ export class MitraApiClient {
       });
     });
 
-    if (!res.ok) {
-      const payload = await res.text().catch(() => '');
-      const message = `Gagal menyelesaikan aktivitas (${input.caseNumber}): HTTP ${res.status}`;
-      throw new ApiError(message, { status: res.status, payload, endpoint });
-    }
+    await this.assertOk(res, endpoint, `Gagal menyelesaikan aktivitas (${input.caseNumber}): HTTP ${res.status}`);
 
     const data = (await res.json()) as { id: string; caseId: string };
     return data;
