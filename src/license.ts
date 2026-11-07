@@ -2,15 +2,12 @@ import { color } from './color';
 import { ApiError } from './error';
 import { browserFetch } from './headers';
 
+import { version } from '../package.json';
+
 export interface LicenseRecord {
   name?: string;
   active?: boolean;
-  additional?:
-    | {
-        version?: string;
-        [key: string]: unknown;
-      }
-    | string;
+  additional?: { latest: string; versions: Record<string, boolean>; [key: string]: unknown };
 }
 
 export interface LicenseAuthResponse {
@@ -19,10 +16,10 @@ export interface LicenseAuthResponse {
 }
 
 export interface LicenseInfo {
-  active: boolean;
   name?: string;
-  version?: string;
   token?: string;
+  latest?: string;
+  active: boolean;
 }
 
 export interface SessionRecord {
@@ -36,6 +33,7 @@ export interface SessionRecord {
 export interface LicenseManagerOptions {
   url?: string;
   token?: string;
+  user?: string;
   fetchFn?: typeof fetch;
 }
 
@@ -43,7 +41,7 @@ export function getTokenExpiry(token: string, fallbackTtlMs = 12 * 60 * 60 * 100
   try {
     const parts = token.split('.');
     if (parts.length >= 2) {
-      const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+      const payloadJson = Buffer.from(parts[1]!, 'base64url').toString('utf8');
       const payload = JSON.parse(payloadJson);
       if (typeof payload.exp === 'number' && !isNaN(payload.exp)) {
         return new Date(payload.exp * 1000).toISOString();
@@ -107,29 +105,29 @@ export async function checkNetwork(
 }
 
 export async function checkLicense(
-  options: { url?: string; token?: string; fetchFn?: typeof fetch } = {},
+  options: Partial<Record<'url' | 'token' | 'user', string>> & { fetchFn?: typeof fetch } = {},
 ): Promise<LicenseInfo | void> {
   const authUrl = options.url ?? process.env.LICENSE_URL;
-  const token = options.token ?? process.env.LICENSE_TOKEN;
+  const password = options.token ?? process.env.LICENSE_TOKEN;
+  const licenseUser = options.user ?? process.env.LICENSE_USER;
   const fetchFn = options.fetchFn ?? fetch;
 
-  if (!authUrl || authUrl === 'false' || !token || token === 'false') {
+  if (!authUrl || !licenseUser || !password)
     // License check skipped when not configured
     return;
-  }
 
   const endpoint = `${authUrl.replace(/\/+$/, '')}/api/collections/users/auth-with-password`;
   const response = await browserFetch(fetchFn, endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identity: 'pega_bot', password: token }),
+    body: JSON.stringify({ identity: licenseUser, password: password }),
   }).catch((err) => {
     throw new Error(`Gagal memverifikasi lisensi: ${err.message}`);
   });
 
   if (!response.ok) {
     const payload = await response.text().catch(() => '');
-    throw new ApiError('Gagal verifikasi lisensi: Kredensial lisensi tidak valid.', {
+    throw new ApiError('Gagal verifikasi status bot: Kredensial lisensi tidak valid.', {
       status: response.status,
       payload,
       endpoint,
@@ -138,21 +136,12 @@ export async function checkLicense(
 
   const data = (await response.json()) as LicenseAuthResponse;
   const record = data?.record;
+  const metadata = record?.additional;
+  const isLicenseActive = Boolean(record && record.active === true && metadata?.versions?.[version]);
 
-  if (record && record.active === true) {
-    const version =
-      typeof record.additional === 'object'
-        ? record.additional?.version || 'unknown version'
-        : record.additional || 'unknown version';
-    return {
-      active: true,
-      name: record.name,
-      version: String(version),
-      token: data.token,
-    };
-  }
-
-  throw new Error('Bot Kedaluwarsa. Silakan hubungi pengembang.');
+  if (record && isLicenseActive)
+    return { active: true, name: record.name, token: data.token, latest: metadata?.latest };
+  else throw new Error('Silakan hubungi pengembang.');
 }
 
 export async function sendTelemetry(
@@ -255,14 +244,18 @@ export async function saveCachedSession(
 
 export class LicenseManager {
   private readonly url?: string;
+  private readonly user?: string;
   private readonly licenseKey?: string;
+  private readonly sessionRecordIds = new Map<string, string>();
   private readonly fetchFn?: typeof fetch;
   private licenseInfo?: LicenseInfo;
-  private readonly sessionRecordIds = new Map<string, string>();
+
+  static readonly version = version;
 
   constructor(options: LicenseManagerOptions = {}) {
     this.url = options.url ?? process.env.LICENSE_URL;
     this.licenseKey = options.token ?? process.env.LICENSE_TOKEN;
+    this.user = options.user ?? process.env.LICENSE_USER;
     this.fetchFn = options.fetchFn;
   }
 
@@ -278,6 +271,7 @@ export class LicenseManager {
     const res = await checkLicense({
       url: this.url,
       token: this.licenseKey,
+      user: this.user,
       fetchFn: this.fetchFn,
     });
     this.licenseInfo = res || undefined;

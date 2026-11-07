@@ -2,7 +2,7 @@
   "name": "bot-pega-mitra",
   "module": "src/index.ts",
   "type": "module",
-  "author": "Kevin Sandiho",
+  "author": "manot40",
   "version": "3.0.0",
   "license": "GPL-3.0",
   "description": "Bot Uploader Aktivitas Mitra PayrollQ",
@@ -14,10 +14,10 @@
     }
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
     "test": "bun test",
-    "build": "bun run build.ts"
+    "build": "bun build.ts"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1"

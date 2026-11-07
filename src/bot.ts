@@ -75,7 +75,7 @@ export class MainBot {
     this.spinner.start('Memeriksa koneksi jaringan...');
     try {
       await this.checkNetworkFn();
-      this.spinner.stop('Koneksi jaringan terhubung.');
+      this.spinner.stop('Terhubung ke jaringan.');
     } catch (err: unknown) {
       this.spinner.stop(color.red('Gagal terhubung ke jaringan.'));
       await this.logErrorFn(err);
@@ -87,13 +87,15 @@ export class MainBot {
     this.spinner.start('Memverifikasi versi bot...');
     try {
       const lic = await this.license.verify();
+      const version = LicenseManager.version;
       if (!lic) {
-        this.spinner.stop(color.yellow('Versi bot tidak diketahui.'));
+        this.spinner.stop(`Version: ${version}`);
       } else {
-        this.spinner.stop(`Versi Bot: ${lic.version} | Status: ${color.green(lic.name || 'Aktif')}`);
+        this.spinner.stop(`Version: ${version} | Licensed to ${color.green(lic.name || 'Aktif')}`);
+        if (lic.latest !== version) this.ui.log.warn('⚠️ Terdapat pembaruan bot. Silakan hubungi pengembang ⚠️');
       }
     } catch (err: unknown) {
-      this.spinner.stop(color.red('Gagal verifikasi lisensi.'));
+      this.spinner.stop(color.red('Gagal verifikasi status bot.'));
       await this.logErrorFn(err);
       this.ui.cancel(formatErrorMessage(err));
       this.exitFn(2);
@@ -275,7 +277,7 @@ export class MainBot {
       return undefined as never;
     }
 
-    if (userContexts.length === 1) {
+    if (userContexts.length === 1 && userContexts[0]) {
       return userContexts[0];
     }
 
@@ -318,7 +320,7 @@ export class MainBot {
 
     this.spinner.start('Menyelaraskan folder penyimpanan...');
     await ensureDirectories(activities.map((a) => a.activityName));
-    this.spinner.stop("Folder aktivitas siap di folder 'images/'.");
+    this.spinner.stop('Folder aktivitas siap di folder "images".');
 
     return activities;
   }
@@ -425,7 +427,7 @@ export class MainBot {
     let failCount = 0;
 
     for (let i = 0; i < filesInDir.length; i++) {
-      const fileName = filesInDir[i];
+      const fileName = filesInDir[i]!;
       const filePath = path.join('images', safeDirName, fileName);
       const fileIndexStr = `(${i + 1}/${filesInDir.length})`;
       const keterangan = keteranganMode === 'filename' ? stripExtension(fileName) : chosenAct.activityName;

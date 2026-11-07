@@ -43,7 +43,14 @@ describe('MainBot Authentication & Token Reuse Flow', () => {
       fetchFn: (async (url: string) => {
         if (url.includes('auth-with-password')) {
           return new Response(
-            JSON.stringify({ token: 'pb-jwt', record: { active: true, name: 'Test', additional: '3.0.0' } }),
+            JSON.stringify({
+              token: 'pb-jwt',
+              record: {
+                active: true,
+                name: 'Test',
+                additional: { latest: '3.0.0', versions: { '3.0.0': true } },
+              },
+            }),
             { status: 200 },
           );
         }
@@ -101,7 +108,14 @@ describe('MainBot Authentication & Token Reuse Flow', () => {
       fetchFn: (async (url: string) => {
         if (url.includes('auth-with-password')) {
           return new Response(
-            JSON.stringify({ token: 'pb-jwt', record: { active: true, name: 'Test', additional: '3.0.0' } }),
+            JSON.stringify({
+              token: 'pb-jwt',
+              record: {
+                active: true,
+                name: 'Test',
+                additional: { latest: '3.0.0', versions: { '3.0.0': true } },
+              },
+            }),
             { status: 200 },
           );
         }
@@ -161,7 +175,14 @@ describe('MainBot Authentication & Token Reuse Flow', () => {
       fetchFn: (async (url: string, init?: RequestInit) => {
         if (url.includes('auth-with-password')) {
           return new Response(
-            JSON.stringify({ token: 'pb-jwt', record: { active: true, name: 'Test', additional: '3.0.0' } }),
+            JSON.stringify({
+              token: 'pb-jwt',
+              record: {
+                active: true,
+                name: 'Test',
+                additional: { latest: '3.0.0', versions: { '3.0.0': true } },
+              },
+            }),
             { status: 200 },
           );
         }
