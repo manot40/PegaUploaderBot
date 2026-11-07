@@ -14,9 +14,6 @@ describe('License & Network Verification', () => {
   it('should skip license check when LICENSE_URL or LICENSE_TOKEN is absent or false', async () => {
     const res1 = await checkLicense({ url: '', token: '' });
     expect(res1).toBeUndefined();
-
-    const res2 = await checkLicense({ url: 'false', token: 'false' });
-    expect(res2).toBeUndefined();
   });
 
   it('should succeed when license server returns active === true and version is supported', async () => {
@@ -49,7 +46,7 @@ describe('License & Network Verification', () => {
     expect(result).toBeDefined();
     expect(result?.active).toBe(true);
     expect(result?.name).toBe('License User A');
-    expect(result?.version).toBe('3.0.0');
+    expect(result?.latest).toBe('3.0.0');
     expect(result?.token).toBe('jwt-bearer-token');
     expect(JSON.parse(capturedBody!)).toEqual({
       identity: 'custom-user',

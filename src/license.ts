@@ -18,8 +18,8 @@ export interface LicenseAuthResponse {
 export interface LicenseInfo {
   name?: string;
   token?: string;
+  latest?: string;
   active: boolean;
-  version: string;
 }
 
 export interface SessionRecord {
@@ -41,7 +41,7 @@ export function getTokenExpiry(token: string, fallbackTtlMs = 12 * 60 * 60 * 100
   try {
     const parts = token.split('.');
     if (parts.length >= 2) {
-      const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+      const payloadJson = Buffer.from(parts[1]!, 'base64url').toString('utf8');
       const payload = JSON.parse(payloadJson);
       if (typeof payload.exp === 'number' && !isNaN(payload.exp)) {
         return new Date(payload.exp * 1000).toISOString();
@@ -112,10 +112,9 @@ export async function checkLicense(
   const licenseUser = options.user ?? process.env.LICENSE_USER;
   const fetchFn = options.fetchFn ?? fetch;
 
-  if (!authUrl || authUrl === 'false' || !password || password === 'false') {
+  if (!authUrl || !licenseUser || !password)
     // License check skipped when not configured
     return;
-  }
 
   const endpoint = `${authUrl.replace(/\/+$/, '')}/api/collections/users/auth-with-password`;
   const response = await browserFetch(fetchFn, endpoint, {
@@ -140,7 +139,8 @@ export async function checkLicense(
   const metadata = record?.additional;
   const isLicenseActive = Boolean(record && record.active === true && metadata?.versions?.[version]);
 
-  if (record && isLicenseActive) return { version, active: true, name: record.name, token: data.token };
+  if (record && isLicenseActive)
+    return { active: true, name: record.name, token: data.token, latest: metadata?.latest };
   else throw new Error('Silakan hubungi pengembang.');
 }
 
@@ -244,11 +244,13 @@ export async function saveCachedSession(
 
 export class LicenseManager {
   private readonly url?: string;
-  private readonly licenseKey?: string;
   private readonly user?: string;
+  private readonly licenseKey?: string;
+  private readonly sessionRecordIds = new Map<string, string>();
   private readonly fetchFn?: typeof fetch;
   private licenseInfo?: LicenseInfo;
-  private readonly sessionRecordIds = new Map<string, string>();
+
+  static readonly version = version;
 
   constructor(options: LicenseManagerOptions = {}) {
     this.url = options.url ?? process.env.LICENSE_URL;

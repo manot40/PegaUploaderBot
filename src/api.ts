@@ -94,9 +94,9 @@ export class UniportApiClient {
     // Split on comma only if followed by cookie-name= pattern
     const splitCookies = rawCookies.split(/,(?=[^;]+=[^;]+)/g);
     for (const c of splitCookies) {
-      const parts = c.trim().split(';')[0].split('=');
+      const parts = c.trim().split(';')[0]!.split('=');
       if (parts.length >= 2) {
-        const name = parts[0].trim();
+        const name = parts[0]?.trim();
         const value = parts.slice(1).join('=').trim();
         if (name && value) {
           this.cookies.set(name, value);
@@ -132,7 +132,7 @@ export class UniportApiClient {
         });
       } else if (Array.isArray(initHeaders)) {
         for (const [key, val] of initHeaders) {
-          customHeaders[key] = val;
+          if (typeof val == 'string') customHeaders[key!] = val;
         }
       } else {
         Object.assign(customHeaders, initHeaders);

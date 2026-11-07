@@ -2,7 +2,7 @@
   "name": "bot-pega-mitra",
   "module": "src/index.ts",
   "type": "module",
-  "author": "Kevin Sandiho",
+  "author": "manot40",
   "version": "3.0.0",
   "license": "GPL-3.0",
   "description": "Bot Uploader Aktivitas Mitra PayrollQ",
